@@ -42,8 +42,9 @@ public:
 protected:
     void execute()
     {
-        env->out() << "Version " << LSORACLE_VERSION << " Revision " <<
-                   LSORACLE_GIT_REVISION << std::endl;
+        // env->out() << "Version " << LSORACLE_VERSION << " Revision " <<
+        //            LSORACLE_GIT_REVISION << std::endl;
+        env->out() << "Version " << LSORACLE_VERSION << std::endl;
     }
 
 private:
