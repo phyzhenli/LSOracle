@@ -24,11 +24,12 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifdef ENABLE_OPENSTA
+
 #ifdef ENABLE_ABC
 
 #include <stdlib.h>
 #include <mockturtle/mockturtle.hpp>
+#ifdef ENABLE_OPENSTA
 #include <sta/Sta.hh>
 #include <sta/ConcreteNetwork.hh>
 #include <sta/Corner.hh>
@@ -41,21 +42,24 @@
 #include <sta/PatternMatch.hh>
 #include <sta/VerilogReader.hh>
 #include <sta/StaMain.hh>
+#endif
 
 #include "algorithms/output/verilog_utilities.hpp"
-
+#ifdef ENABLE_OPENSTA
 namespace sta {
 extern const char *tcl_inits[];
 }
 extern "C" {
 extern int Sta_Init(Tcl_Interp *interp);
 }
-
+#endif
 
 #include <filesystem>
 #include <fmt/format.h>
 #include <regex>
+#ifdef ENABLE_OPENSTA
 #include <tcl.h>
+#endif
 #include "algorithms/optimization/resynthesis.hpp"
 #include "algorithms/optimization/mig_script.hpp"
 #include "algorithms/optimization/mig_script2.hpp"
@@ -1398,7 +1402,7 @@ string techmap(
     return output_file;
 
 }
-
+#ifdef ENABLE_OPENSTA
 void print_path(sta::ConcreteInstance *i)
 {
     if (sta::ConcreteInstance *p = i->parent()) {
@@ -1420,7 +1424,7 @@ int get_partition_from_inst(sta::ConcreteInstance *i)
         return -1;
     }
 }
-
+#endif
 
 template <typename network>
 void write_top(oracle::partition_manager_junior<network> &partitions,
@@ -1525,7 +1529,7 @@ void write_top(oracle::partition_manager_junior<network> &partitions,
     }
     verilog << "endmodule" << std::endl;
 }
-
+#ifdef ENABLE_OPENSTA
 size_t run_timing(sta::LibertyLibrary *lib,
                   const std::string &liberty_file,
                   const std::string &verilog_file,
@@ -1648,7 +1652,7 @@ void reset_sta()
     Tcl_Eval(tcl_interp, "sta::define_sta_cmds");
     Tcl_Eval(tcl_interp, "namespace import sta::*");
 }
-
+#endif
 
 template <typename network>
 const int worst_indep(oracle::partition_manager_junior<network> &partitions,
@@ -1764,6 +1768,7 @@ xmg_names setup_output1(
     std::cout << "Finished connecting outputs" << std::endl;
     return partitions_out.get_network();
 }
+#ifdef ENABLE_OPENSTA
 /*
  * Mixed synthesis followed by XMG resynthesis and combination.
  */
@@ -1828,7 +1833,7 @@ template <typename network> xmg_names optimize_timing(
     // Output network
     return setup_output(partitions, optimized);
 }
-
+#endif
 
 /*
 Mixed synthesis followed by XMG resynthesis and combiniation
@@ -1918,14 +1923,14 @@ xmg_names optimize_basic (
 
 
 
-
+#ifdef ENABLE_OPENSTA
 /**************** Template instances ****************/
 template xmg_names
 optimize_timing<mockturtle::aig_network>
 (
     oracle::partition_manager_junior<mockturtle::aig_network> &,
     const std::string &, const std::string &, const std::string &, const std::string &, const std::string &, const std::string &, const std::string &);
-
+#endif
 template xmg_names
 optimize_basic<mockturtle::aig_network>
 (
@@ -1960,4 +1965,4 @@ write_child<mockturtle::xag_network>(
 
 
 #endif
-#endif
+
