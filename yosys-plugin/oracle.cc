@@ -751,7 +751,7 @@ std::string prepend_script_file(std::string script_file, std::string input_file,
 	return lso_script.str();
 }
 
-std::string generate_lso_script(std::string exe_file, std::string input_aig_file, std::string output_blif_file,
+std::string generate_lso_script(std::string exe_file, std::string abcexe_file, std::string input_aig_file, std::string output_blif_file,
 			std::string num_parts, bool partitioned, bool exclu_part, bool mig,
 				bool deep, bool merge, bool test, bool aig, bool xag, bool xmg, bool lut)
 {
@@ -788,7 +788,7 @@ std::string generate_lso_script(std::string exe_file, std::string input_aig_file
 				if(merge)
 					lso_script += LSO_COMMAND_PART_HIGH_EFFORT_M;
 				else
-					lso_script += LSO_COMMAND_PART_HIGH_EFFORT;
+					lso_script += "ps -a; oracle --abc_exec " + abcexe_file + "; ps --xmg; critical_path --xmg";
 			}
 
 		}
@@ -1110,7 +1110,7 @@ void abc_module(RTLIL::Design *design, RTLIL::Module *current_module, std::strin
 		std::string lso_script;
 		if (script_file == "") {
 		// TODO pass temp filenames
-			lso_script = generate_lso_script(lsoexe_file, aiger_temp_file, blif_output_file, num_parts,
+			lso_script = generate_lso_script(lsoexe_file, abcexe_file, aiger_temp_file, blif_output_file, num_parts,
 							 partitioned, exclu_part, mig, deep, merge, test, aig, xag, xmg, lut);
 
 		} else {

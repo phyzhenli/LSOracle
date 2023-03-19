@@ -487,7 +487,7 @@ public:
 
     const std::string optimizer_name()
     {
-        return "abc resyn2";
+        return "abc_resyn2";
     }
 
     optimizer<mockturtle::xmg_network> *reapply(int index, const xmg_partition &part)
@@ -497,27 +497,27 @@ public:
 
     void optimize()
     {
-        char *blif_name_char = strdup("/tmp/lsoracle_XXXXXX.blif");
+        char *blif_name_char = strdup("lsoracle_XXXXXX.blif");
         if (mkstemps(blif_name_char, 5) == -1) {
             throw std::exception();
         }
         std::string blif_name = std::string(blif_name_char);
-        std::cout << "writing blif to " << blif_name  << std::endl;
+        // std::cout << "writing blif to " << blif_name  << std::endl;
 
-        char *blif_output_name_char = strdup("/tmp/lsoracle_XXXXXX_optimized.blif");
+        char *blif_output_name_char = strdup("lsoracle_XXXXXX_optimized.blif");
         if (mkstemps(blif_output_name_char, 15) == -1) {
             throw std::exception();
         }
         std::string blif_output_name = std::string(blif_output_name_char);
-        std::cout << "writing abc output to " << blif_output_name  << std::endl;
+        // std::cout << "writing abc output to " << blif_output_name  << std::endl;
 
         mockturtle::write_blif_params ps;
         ps.skip_feedthrough = 1u;
         mockturtle::write_blif(this->converted, blif_name, ps);
-        std::string script = "abc -c \"read_blif " + blif_name + "; resyn2; write_blif " + blif_output_name + " \"";
+        std::string script = this->abc_exec + " -q \"read_blif " + blif_name + "; balance; rewrite; refactor; balance; rewrite; rewrite -z; balance; refactor -z; rewrite -z; balance; write_blif " + blif_output_name + " \"";
         int code = system((script).c_str());
         assert(code == 0);
-        std::cout << "optimized with abc" << std::endl;
+        // std::cout << "optimized with abc" << std::endl;
 
         mockturtle::names_view<mockturtle::klut_network> klut;
         lorina::return_code read_blif_return_code = lorina::read_blif(blif_output_name, mockturtle::blif_reader(klut));
@@ -525,9 +525,12 @@ public:
         mockturtle::xag_npn_resynthesis<mockturtle::aig_network> resyn;
         mockturtle::node_resynthesis(this->optimal, klut, resyn);
         this->optimal.set_network_name(this->converted.get_network_name());
+
+        std::remove(blif_name.c_str());
+        std::remove(blif_output_name.c_str());
     }
     void reoptimize(){
-        
+        optimize();
     }
 };
 
@@ -1064,12 +1067,12 @@ optimizer<network> *optimize(optimization_strategy_comparator<network> &comparat
         new migscript3_optimizer<network>(index, part, strategy, abc_exec),
         new aigscript_optimizer<network>(index, part, strategy, abc_exec),
         new aigscript2_optimizer<network>(index, part, strategy, abc_exec),
-        new aigscript3_optimizer<network>(index, part, strategy, abc_exec),
+        // new aigscript3_optimizer<network>(index, part, strategy, abc_exec),
         new aigscript4_optimizer<network>(index, part, strategy, abc_exec),
         new aigscript5_optimizer<network>(index, part, strategy, abc_exec),
         new xmg_optimizer<network>(index, part, strategy, abc_exec),
         new xag_optimizer<network>(index, part, strategy, abc_exec),
-        // new abc_optimizer<network>(index, part, strategy, abc_exec),
+        new abc_optimizer<network>(index, part, strategy, abc_exec),
    };
     std::vector<optimizer<network>*> optimizersave {};
     optimizer<network> *best = nullptr;
