@@ -217,6 +217,7 @@ public:
                         env->err() << out_file << " is not an accepted output file {.v, .blif}\n";
                     }
                 }
+            std::remove(config_direc.c_str());
         }
     private:
         uint32_t num_partitions = 0;
