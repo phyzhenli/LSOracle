@@ -323,7 +323,16 @@ void write_gblif( Ntk const& ntk, std::ostream& os, write_gblif_params const& ps
 
     if ( ntk.is_and( n ) )
     {
-      writer.on_assign( node_names[n], detail::format_fanin<Ntk>( ntk, n, node_names ), "&" );
+      // writer.on_assign( node_names[n], detail::format_fanin<Ntk>( ntk, n, node_names ), "&" );
+      std::vector<std::pair<bool, std::string>> const ins = detail::format_fanin<Ntk>( ntk, n, node_names );
+      if (!ins[0u].first && !ins[1u].first)
+        os << fmt::format( ".gate AND    A={} B={} Y={}\n", ins[0u].second, ins[1u].second, node_names[n] );
+      if (!ins[0u].first && ins[1u].first)
+        os << fmt::format( ".gate ANDNOT A={} B={} Y={}\n", ins[0u].second, ins[1u].second, node_names[n] );
+      if (ins[0u].first && !ins[1u].first)
+        os << fmt::format( ".gate ANDNOT A={} B={} Y={}\n", ins[1u].second, ins[0u].second, node_names[n] );
+      if (ins[0u].first && ins[1u].first)
+        os << fmt::format( ".gate NOR    A={} B={} Y={}\n", ins[0u].second, ins[1u].second, node_names[n] );
     }
     else if ( ntk.is_or( n ) )
     {
@@ -337,11 +346,17 @@ void write_gblif( Ntk const& ntk, std::ostream& os, write_gblif_params const& ps
         if ( ins.at( i ).first )
           os << fmt::format( ".gate NOT    A={} Y={}\n", ins.at(i).second, node_names[n]+"_"+ins.at(i).second+"_inv" );
       }
-      os << fmt::format( ".gate XOR3   A={} B={} C={} Y={}\n",
-                      ins.at( 0 ).first ? node_names[n]+"_"+ins.at( 0 ).second+"_inv" : ins.at( 0 ).second,
-                      ins.at( 1 ).first ? node_names[n]+"_"+ins.at( 1 ).second+"_inv" : ins.at( 1 ).second,
-                      ins.at( 2 ).first ? node_names[n]+"_"+ins.at( 2 ).second+"_inv" : ins.at( 2 ).second,
-                      node_names[n] );
+      if ( ntk.is_xor( n ) )
+        os << fmt::format( ".gate XOR    A={} B={} Y={}\n",
+                        ins.at( 0 ).first ? node_names[n]+"_"+ins.at( 0 ).second+"_inv" : ins.at( 0 ).second,
+                        ins.at( 1 ).first ? node_names[n]+"_"+ins.at( 1 ).second+"_inv" : ins.at( 1 ).second,
+                        node_names[n] );
+      if ( ntk.is_xor3( n ) )
+        os << fmt::format( ".gate XOR3   A={} B={} C={} Y={}\n",
+                        ins.at( 0 ).first ? node_names[n]+"_"+ins.at( 0 ).second+"_inv" : ins.at( 0 ).second,
+                        ins.at( 1 ).first ? node_names[n]+"_"+ins.at( 1 ).second+"_inv" : ins.at( 1 ).second,
+                        ins.at( 2 ).first ? node_names[n]+"_"+ins.at( 2 ).second+"_inv" : ins.at( 2 ).second,
+                        node_names[n] );
     }
     else if ( ntk.is_maj( n ) )
     {
