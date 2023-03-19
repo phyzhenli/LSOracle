@@ -1177,16 +1177,16 @@ vector<optimizer<network> *> optimize1(optimization_strategy_comparator<network>
     std::vector<optimizer<network>*>optimizers {
         new noop<network>(index, part, strategy, abc_exec),
         new migscript_optimizer<network>(index, part, strategy, abc_exec),
-       // new migscript2_optimizer<network>(index, part, strategy, abc_exec),
+        new migscript2_optimizer<network>(index, part, strategy, abc_exec),
         new migscript3_optimizer<network>(index, part, strategy, abc_exec),
         new aigscript_optimizer<network>(index, part, strategy, abc_exec),
         new aigscript2_optimizer<network>(index, part, strategy, abc_exec),
-        new aigscript3_optimizer<network>(index, part, strategy, abc_exec),
+        // new aigscript3_optimizer<network>(index, part, strategy, abc_exec),
         new aigscript4_optimizer<network>(index, part, strategy, abc_exec),
         new aigscript5_optimizer<network>(index, part, strategy, abc_exec),
         new xmg_optimizer<network>(index, part, strategy, abc_exec),
         new xag_optimizer<network>(index, part, strategy, abc_exec),
-        // new abc_optimizer<network>(index, part, strategy, abc_exec),
+        new abc_optimizer<network>(index, part, strategy, abc_exec),
    };
     std::vector<optimizer<network>*> optimizersave {};
     std::vector<optimizer<network>*> optimizersave1 {};
