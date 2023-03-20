@@ -1242,24 +1242,36 @@ vector<optimizer<network> *> optimize1(optimization_strategy_comparator<network>
     }
 
     else{
-        for (auto opt = optimizers.begin(); opt != optimizers.end(); opt++) {
-            std::cout << "running optimization " << (*opt)->optimizer_name() << std::endl;
-            (*opt)->convert();
-            (*opt)->optimize();
-            node_depth result = (*opt)->independent_metric();
+        if (part.num_gates() <= 1) {
+            std::cout << "nodes <= 1, no opt" << std::endl;
+            optimizers[0]->convert();
+            optimizers[0]->optimize();
+            node_depth result = optimizers[0]->independent_metric();
             std::cout << "result depth " << result.depth
                     << " size " << result.nodes << std::endl;
-            if (best == nullptr) {
-                best = *opt;
-                optimizersave.push_back(best);
-                continue;
-            }
-            if (comparator(**opt, *best)) {
-                best = *opt;
-                optimizersave[0]=best;
-                //std::cout << "found a better result" << std::endl;
-                continue;
-            node_depth result3 = best->independent_metric();
+            best = optimizers[0];
+            optimizersave.push_back(best);
+        }
+        else {
+            for (auto opt = optimizers.begin(); opt != optimizers.end(); opt++) {
+                std::cout << "running optimization " << (*opt)->optimizer_name() << std::endl;
+                (*opt)->convert();
+                (*opt)->optimize();
+                node_depth result = (*opt)->independent_metric();
+                std::cout << "result depth " << result.depth
+                        << " size " << result.nodes << std::endl;
+                if (best == nullptr) {
+                    best = *opt;
+                    optimizersave.push_back(best);
+                    continue;
+                }
+                if (comparator(**opt, *best)) {
+                    best = *opt;
+                    optimizersave[0]=best;
+                    //std::cout << "found a better result" << std::endl;
+                    continue;
+                node_depth result3 = best->independent_metric();
+                }
             }
         }
     }
