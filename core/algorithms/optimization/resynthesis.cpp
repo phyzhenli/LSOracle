@@ -343,10 +343,7 @@ template class noop<mockturtle::xmg_network>;
 template <typename network>
 class mig_optimizer: public optimizer<network>
 {
-    using names = mockturtle::names_view<network>;
-    using partition = mockturtle::window_view<names>;
-    using manager = mockturtle::window_view<names>;
-
+    using partition = mockturtle::window_view<mockturtle::names_view<network>>;
 public:
     mig_optimizer(int index, const partition &original, optimization_strategy target, const std::string &abc_exec): index(index), original(original), strategy(target), abc_exec(abc_exec)
     {
@@ -363,9 +360,7 @@ public:
     {
         // mockturtle::mig_npn_resynthesis resyn;
         mockturtle::direct_resynthesis<mig_names> resyn;
-        converted =
-            mockturtle::node_resynthesis<mig_names, mockturtle::window_view<mockturtle::names_view<network>>>
-            (original, resyn);
+        converted = mockturtle::node_resynthesis<mig_names, partition> (original, resyn);
         converted.set_network_name("partition_" + std::to_string(index));
 
     }
@@ -479,11 +474,11 @@ template class aig_optimizer<mockturtle::aig_network>;
 
 
 template< typename network>
-class abc_optimizer: public aig_optimizer<network>
+class abc_resyn2_optimizer: public aig_optimizer<network>
 {
     using partition = mockturtle::window_view<mockturtle::names_view<network>>;
 public:
-    abc_optimizer(int index, const partition &original, optimization_strategy target, const std::string &abc_exec): aig_optimizer<network>(index, original, target, abc_exec) {}
+    abc_resyn2_optimizer(int index, const partition &original, optimization_strategy target, const std::string &abc_exec): aig_optimizer<network>(index, original, target, abc_exec) {}
 
     const std::string optimizer_name()
     {
@@ -492,7 +487,7 @@ public:
 
     optimizer<mockturtle::xmg_network> *reapply(int index, const xmg_partition &part)
     {
-        return new abc_optimizer<mockturtle::xmg_network>(index, part, this->strategy, this->abc_exec);
+        return new abc_resyn2_optimizer<mockturtle::xmg_network>(index, part, this->strategy, this->abc_exec);
     }
 
     void optimize()
@@ -1072,7 +1067,7 @@ optimizer<network> *optimize(optimization_strategy_comparator<network> &comparat
         new aigscript5_optimizer<network>(index, part, strategy, abc_exec),
         new xmg_optimizer<network>(index, part, strategy, abc_exec),
         new xag_optimizer<network>(index, part, strategy, abc_exec),
-        new abc_optimizer<network>(index, part, strategy, abc_exec),
+        new abc_resyn2_optimizer<network>(index, part, strategy, abc_exec),
    };
     std::vector<optimizer<network>*> optimizersave {};
     optimizer<network> *best = nullptr;
@@ -1186,7 +1181,7 @@ vector<optimizer<network> *> optimize1(optimization_strategy_comparator<network>
         new aigscript5_optimizer<network>(index, part, strategy, abc_exec),
         new xmg_optimizer<network>(index, part, strategy, abc_exec),
         new xag_optimizer<network>(index, part, strategy, abc_exec),
-        new abc_optimizer<network>(index, part, strategy, abc_exec),
+        new abc_resyn2_optimizer<network>(index, part, strategy, abc_exec),
    };
     std::vector<optimizer<network>*> optimizersave {};
     std::vector<optimizer<network>*> optimizersave1 {};
