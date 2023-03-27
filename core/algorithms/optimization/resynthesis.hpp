@@ -62,6 +62,12 @@ struct node_depth {
     int depth;
 };
 
+struct power_delay_slack_area {
+    double power;
+    double delay;
+    double slack;
+    double area;
+};
 
 template<typename network>
 class optimizer
@@ -80,10 +86,22 @@ public:
      */
     virtual void optimize() = 0;
     virtual void reoptimize() = 0;
-     /**
+    /**
+     * Write partition network in Verilog format.
+     */
+    virtual void write_verilog() = 0;
+    /**
      * Calculate tech independent depth and nodes metrics.
      */
     virtual node_depth independent_metric() = 0;
+    /**
+     * Set tech dependent power, delay, slack, and area metrics.
+     */
+    virtual void set_pdsa(double power, double delay, double slack, double area) = 0;
+    /**
+     * Get tech dependent power, delay, slack, and area metrics.
+     */
+    virtual power_delay_slack_area get_pdsa() = 0;
     /**
      * List the type of optimization: area, delay, or balanced.
      */
