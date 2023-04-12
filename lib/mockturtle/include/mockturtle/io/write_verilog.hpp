@@ -145,7 +145,7 @@ void write_verilog( Ntk const& ntk, std::ostream& os, write_verilog_params const
       ntk.foreach_pi( [&]( auto const& i, uint32_t index ){
         if ( ntk.has_name( ntk.make_signal( i ) ) )
         {
-          xs.emplace_back( '\\' + ntk.get_name( ntk.make_signal( i ) ) );
+          xs.emplace_back( ntk.get_name( ntk.make_signal( i ) ) );
         }
         else
         {
@@ -188,7 +188,7 @@ void write_verilog( Ntk const& ntk, std::ostream& os, write_verilog_params const
       ntk.foreach_po( [&]( auto const& o, uint32_t index ){
         if ( ntk.has_output_name( index ) )
         {
-          ys.emplace_back( '\\' + ntk.get_output_name( index ) );
+          ys.emplace_back( ntk.get_output_name( index ) );
         }
         else
         {
