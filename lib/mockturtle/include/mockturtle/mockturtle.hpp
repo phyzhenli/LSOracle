@@ -153,6 +153,7 @@
 #include "mockturtle/io/write_dimacs.hpp"
 #include "mockturtle/io/write_dot.hpp"
 #include "mockturtle/io/write_gblif.hpp"
+#include "mockturtle/io/write_ports.hpp"
 #include "mockturtle/io/write_patterns.hpp"
 #include "mockturtle/io/write_verilog.hpp"
 #include "mockturtle/networks/abstract_xag.hpp"
