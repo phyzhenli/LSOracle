@@ -30,6 +30,7 @@
 #include <algorithm>
 #include <vector>
 #include <mockturtle/mockturtle.hpp>
+#include "utility.hpp"
 
 namespace oracle
 {
@@ -81,6 +82,7 @@ public:
            // Add output if fans out to non-partition.
            fanout.foreach_fanout(n, [&](node const &s) {
                if (partitions[s] != id) {
+                if (!ntk.is_ci(n))
                   outputs.push_back(ntk.make_signal(n));
                   return false;
                }
@@ -103,6 +105,40 @@ public:
         auto oend = std::unique(outputs.begin(), outputs.end());
         outputs.resize(std::distance(outputs.begin(),oend));
         return mockturtle::window_view(ntk, inputs, outputs, gates);
+    }
+
+    void gen_additional_partition(std::string module_name, std::string filename)
+    {
+        mockturtle::node_map<std::string, network> node_names( ntk );
+        node_names[ntk.get_constant( false )] = "1'b0";
+        std::vector<std::string> inputs, outputs;
+        int digits_gate = std::to_string(ntk.num_gates()).length();
+        ntk.foreach_po( [&]( auto const& signal, auto index ) {
+            if ( !ntk.is_constant( ntk.get_node(signal) ) ) {
+                inputs.push_back( fmt::format("node__{0:0{1}}", ntk.get_node(signal), digits_gate) );
+                node_names[ ntk.get_node(signal) ] = fmt::format("node__{0:0{1}}", ntk.get_node(signal), digits_gate);
+            }
+            outputs.push_back( ntk.get_output_name( index ) );
+            return true;
+        } );
+        std::sort(inputs.begin(), inputs.end());
+        inputs.erase(std::unique(inputs.begin(), inputs.end()), inputs.end());
+        std::ofstream os( filename, std::ofstream::out );
+        lorina::verilog_writer writer( os );
+        writer.on_module_begin( module_name, inputs, outputs );
+        writer.on_input( inputs );
+        writer.on_output( outputs );
+        ntk.foreach_po( [&]( auto const& signal, auto index ) {
+            writer.on_assign_po( ntk.get_output_name( index ), std::make_pair( ntk.is_complemented( signal ), node_names[signal] ) );
+        });
+        writer.on_module_end();
+        os.close();
+
+        std::vector<std::string> ports( inputs );
+        ports.insert(ports.end(), outputs.begin(), outputs.end());
+        std::ofstream os_ports( (filename.erase(filename.length()-2) + ".ports").c_str(), std::ofstream::out );
+        os_ports << fmt::format( "{}", fmt::join( ports, " " ) );
+        os_ports.close();
     }
 
     template<class optimized_network>

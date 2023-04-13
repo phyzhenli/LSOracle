@@ -166,18 +166,15 @@ std::string get_pi_name_or_default(const network &ntk, const typename network::n
 template <typename network>
 std::string get_node_name_or_default(const network &ntk, const typename network::node &node)
 {
-    if (ntk.is_pi(node)) {
+    if (ntk.is_pi(node))
         return get_pi_name_or_default(ntk, node);
-    } else {
-        typename network::signal signal = ntk.make_signal(node);
-        if (ntk.has_name(signal)) {
-            return  ntk.get_name(signal);
-        } else {
-            // std::cout << "missing name for non-PI node " << node << std::endl;
-            int digits_gate = std::to_string(ntk.num_gates()).length();
-            return fmt::format("node__{0:0{1}}", node, digits_gate);
-        }
-    }
+
+    // typename network::signal signal = ntk.make_signal(node);
+    // if (ntk.has_name(signal))
+    //     return ntk.get_name(signal);
+
+    int digits_gate = std::to_string(ntk.num_gates()).length();
+    return fmt::format("node__{0:0{1}}", node, digits_gate);
 }
 
 template <typename network>
@@ -233,9 +230,10 @@ mockturtle::window_view<mockturtle::names_view<network>> fix_names2(partition_ma
         if (ntk.is_pi(n)) {
             feedthrough++;
             // skip feedthroughs
-            return;
+            // return;
         }
-        std::string name = get_node_name_or_default(ntk, n);
+        int digits_gate = std::to_string(ntk.num_gates()).length();
+        std::string name = fmt::format("node__{0:0{1}}", n, digits_gate);
         part.set_output_name(i, name);
     });
     if (feedthrough > 0 ) {
@@ -327,9 +325,24 @@ public:
         return metric;
     }
 
-    void write_verilog() {
-        std::string filename = "partition_" + std::to_string(this->index) + "_" + this->optimizer_name() + ".v";
-        mockturtle::write_verilog(this->copy, filename);
+    void write_original( std::string module_name, std::string filename ) {
+        mockturtle::write_verilog_params ps;
+        ps.module_name = module_name;
+        mockturtle::write_verilog(this->original, filename, ps);
+    }
+
+    void write_optimal( std::string module_name, std::string filename ) {
+        mockturtle::write_verilog_params ps;
+        ps.module_name = module_name;
+        mockturtle::write_verilog(this->copy, filename, ps);
+    }
+
+    void write_ports( std::string filename ) {
+        mockturtle::write_ports(this->copy, filename);
+    }
+
+    int get_partition_id() {
+        return this->index;
     }
 
     void set_pdsa(double power, double delay, double slack, double area) {
@@ -410,9 +423,24 @@ public:
         return strategy;
     }
 
-    void write_verilog() {
-        std::string filename = "partition_" + std::to_string(this->index) + "_" + this->optimizer_name() + ".v";
-        mockturtle::write_verilog(this->optimal, filename);
+    void write_original( std::string module_name, std::string filename ) {
+        mockturtle::write_verilog_params ps;
+        ps.module_name = module_name;
+        mockturtle::write_verilog(this->original, filename, ps);
+    }
+
+    void write_optimal( std::string module_name, std::string filename ) {
+        mockturtle::write_verilog_params ps;
+        ps.module_name = module_name;
+        mockturtle::write_verilog(this->optimal, filename, ps);
+    }
+
+    void write_ports( std::string filename ) {
+        mockturtle::write_ports(this->optimal, filename);
+    }
+
+    int get_partition_id() {
+        return this->index;
     }
 
     void set_pdsa(double power, double delay, double slack, double area) {
@@ -491,9 +519,24 @@ public:
         return strategy;
     }
 
-    void write_verilog() {
-        std::string filename = "partition_" + std::to_string(this->index) + "_" + this->optimizer_name() + ".v";
-        mockturtle::write_verilog(this->optimal, filename);
+    void write_original( std::string module_name, std::string filename ) {
+        mockturtle::write_verilog_params ps;
+        ps.module_name = module_name;
+        mockturtle::write_verilog(this->original, filename, ps);
+    }
+
+    void write_optimal( std::string module_name, std::string filename ) {
+        mockturtle::write_verilog_params ps;
+        ps.module_name = module_name;
+        mockturtle::write_verilog(this->optimal, filename, ps);
+    }
+
+    void write_ports( std::string filename ) {
+        mockturtle::write_ports(this->optimal, filename);
+    }
+
+    int get_partition_id() {
+        return this->index;
     }
 
     void set_pdsa(double power, double delay, double slack, double area) {
@@ -879,9 +922,24 @@ public:
         return strategy;
     }
 
-    void write_verilog() {
-        std::string filename = "partition_" + std::to_string(this->index) + "_" + this->optimizer_name() + ".v";
-        mockturtle::write_verilog(this->optimal, filename);
+    void write_original( std::string module_name, std::string filename ) {
+        mockturtle::write_verilog_params ps;
+        ps.module_name = module_name;
+        mockturtle::write_verilog(this->original, filename, ps);
+    }
+
+    void write_optimal( std::string module_name, std::string filename ) {
+        mockturtle::write_verilog_params ps;
+        ps.module_name = module_name;
+        mockturtle::write_verilog(this->optimal, filename, ps);
+    }
+
+    void write_ports( std::string filename ) {
+        mockturtle::write_ports(this->optimal, filename);
+    }
+
+    int get_partition_id() {
+        return this->index;
     }
 
     void set_pdsa(double power, double delay, double slack, double area) {
@@ -986,9 +1044,24 @@ public:
         return strategy;
     }
 
-    void write_verilog() {
-        std::string filename = "partition_" + std::to_string(this->index) + "_" + this->optimizer_name() + ".v";
-        mockturtle::write_verilog(this->optimal, filename);
+    void write_original( std::string module_name, std::string filename ) {
+        mockturtle::write_verilog_params ps;
+        ps.module_name = module_name;
+        mockturtle::write_verilog(this->original, filename, ps);
+    }
+
+    void write_optimal( std::string module_name, std::string filename ) {
+        mockturtle::write_verilog_params ps;
+        ps.module_name = module_name;
+        mockturtle::write_verilog(this->optimal, filename, ps);
+    }
+
+    void write_ports( std::string filename ) {
+        mockturtle::write_ports(this->optimal, filename);
+    }
+
+    int get_partition_id() {
+        return this->index;
     }
 
     void set_pdsa(double power, double delay, double slack, double area) {
@@ -1479,7 +1552,7 @@ void create_script(std::string script_dir, std::map<std::string, std::string> be
     outfile << "set QoR_RPT               reports/${TOP}_qor.rpt" << std::endl;
     outfile << "set SAIF_RPT              reports/${TOP}_saif.rpt" << std::endl;
     outfile << std::endl;
-    outfile << "set NETLIST               outputs/${TOP}_gate_v.v" << std::endl;
+    outfile << "set NETLIST               outputs/${TOP}_mapped.v" << std::endl;
     outfile << "set DDC                   outputs/${TOP}_ddc.ddc" << std::endl;
     outfile << "set SDF                   outputs/${TOP}_sdf.sdf" << std::endl;
     outfile << std::endl;
@@ -1526,7 +1599,7 @@ void create_script(std::string script_dir, std::map<std::string, std::string> be
     // outfile << "report_qor          > $QoR_RPT" << std::endl;
     // outfile << "report_saif         > $SAIF_RPT" << std::endl;
     outfile << std::endl;
-    // outfile << "write_file -hierarchy -format verilog -output $NETLIST" << std::endl;
+    outfile << "write_file -format verilog -output $NETLIST" << std::endl;
     // outfile << "write_file -hierarchy -format ddc -output $DDC" << std::endl;
     // outfile << "write_sdf $SDF" << std::endl;
     outfile << std::endl;
@@ -1697,6 +1770,9 @@ vector<optimizer<network> *> optimize1(optimization_strategy_comparator<network>
             node_depth result = optimizers[0]->independent_metric();
             std::cout << "result depth " << result.depth
                     << " size " << result.nodes << std::endl;
+            std::string part_script_name = "part_" + std::to_string(index) + "_" + optimizers[0]->optimizer_name();
+            // optimizers[0]->write_original( part_script_name + "_original" );
+            optimizers[0]->write_optimal ( part_script_name, "outputs/" + part_script_name + "_mapped.v" );
             best = optimizers[0];
             optimizersave.push_back(best);
         }
@@ -1709,15 +1785,18 @@ vector<optimizer<network> *> optimize1(optimization_strategy_comparator<network>
                 std::cout << "result depth " << result.depth
                         << " size " << result.nodes << std::endl;
 
-                (*opt)->write_verilog();
-                std::rename(("partition_" + std::to_string(index) + "_" + (*opt)->optimizer_name() + ".v").c_str(), "src/output.v");
+                std::string part_script_name = "part_" + std::to_string(index) + "_" + (*opt)->optimizer_name();
+                // (*opt)->write_original( part_script_name + "_original" );
+                (*opt)->write_optimal ( part_script_name, "src/" + part_script_name + ".v" );
                 std::map<std::string, std::string> bench_info;
-                bench_info["top"] = "top";
+                bench_info["top"] = part_script_name;
                 bench_info["type"] = "combinational";
                 create_script("scripts", bench_info, "compile -map_effort high", 0);
                 std::system("dc_shell -f scripts/top.tcl -output_log_file log > /dev/null");
-                power_delay_slack_area pdsa = get_pdsa("top", "reports");
+                power_delay_slack_area pdsa = get_pdsa(part_script_name, "reports");
                 remove_files("reports");
+                remove_files("src");
+
                 (*opt)->set_pdsa(pdsa.power, pdsa.delay, pdsa.slack, pdsa.area);
                 std::cout << "area: " << pdsa.area << "; delay: " << pdsa.delay << "; ADP: " << fabs( pdsa.area*pdsa.delay ) << std::endl;
 
@@ -1746,7 +1825,7 @@ vector<optimizer<network> *> optimize1(optimization_strategy_comparator<network>
     }
     std::cout << "using " << best->optimizer_name() << " for " << index << std::endl;
     node_depth result2 = best->independent_metric();
-    std::cout << "Best nodes " << result2.nodes << " Best depth " << result2.depth <<std::endl;
+    std::cout << "Best depth " << result2.depth << " Best nodes " << result2.nodes << std::endl;
     std::cout << "Best result found with ";
     for(auto k=optimizersave.begin();k!=optimizersave.end();k++){
                         std::cout <<(*k)->optimizer_name()<<" "<< std::endl;
@@ -2372,12 +2451,26 @@ xmg_names optimize_basic (
   }
   
   for (int i = 0; i < num_parts; i++) {
-    optimizersave = optimize1(*target, strategy, partitions, i, abc_exec,reoptimize_bool);
-    optimized.push_back(optimizersave);
- 
-
+    const mockturtle::window_view<mockturtle::names_view<network>> part = partitions.partition(i);
+    if ( part.num_gates() == 0 && part.num_cos() == 0 )
+        continue;
+    else {
+        optimizersave = optimize1(*target, strategy, partitions, i, abc_exec, reoptimize_bool);
+        optimized.push_back(optimizersave);
+    }
   }
+
+  for( auto &opt : optimized ) {
+    std::string best_part_script_name = "part_" + std::to_string(opt.back()->get_partition_id()) + "_" + opt.back()->optimizer_name();
+    std::rename( ("outputs/" + best_part_script_name + "_mapped.v").c_str(), ("src/" + best_part_script_name + ".v").c_str() );
+    opt.back()->write_ports("src/" + best_part_script_name + ".ports");
+  }
+  remove_files("outputs");
+  
+  std::string module_name = "part_additional";
+  partitions.gen_additional_partition(module_name, "src/" + module_name + ".v");
   delete target;
+  exit(0);
 
   return setup_output1(partitions, optimized);
 }

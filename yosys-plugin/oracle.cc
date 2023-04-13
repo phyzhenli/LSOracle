@@ -64,6 +64,7 @@
 #include <cerrno>
 #include <sstream>
 #include <climits>
+#include <filesystem>
 
 #ifndef _WIN32
 #  include <unistd.h>
@@ -857,7 +858,7 @@ void abc_module(RTLIL::Design *design, RTLIL::Module *current_module, std::strin
 		std::string liberty_file, std::string constr_file, bool cleanup, vector<int> lut_costs, bool dff_mode, std::string clk_str,
 		bool keepff, std::string delay_target, std::string sop_inputs, std::string sop_products, std::string lutin_shared, bool fast_mode,
 		const std::vector<RTLIL::Cell*> &cells, bool show_tempdir, bool sop_mode, bool abc_dress, std::string num_parts, bool partitioned,
-		bool exclu_part, bool mig, bool deep, bool merge, bool test, bool aig, bool xag, bool xmg, bool lut)
+		bool exclu_part, bool mig, bool deep, bool merge, bool test, bool aig, bool xag, bool xmg, bool lut, std::string gen_top_py)
 {
 	module = current_module;
 	map_autoidx = autoidx++;
@@ -1121,12 +1122,12 @@ void abc_module(RTLIL::Design *design, RTLIL::Module *current_module, std::strin
 		lso_module(lsoexe_file, tempdir_name, show_tempdir, script);
 
 		printf("%s\n", blif_output_file.c_str());
-		std::ifstream ifs_lso;
-		ifs_lso.open(blif_output_file);
-		if (ifs_lso.fail())
-			log_error("Can't open LSOracle output file `%s'.\n", blif_output_file.c_str());
+		// std::ifstream ifs_lso;
+		// ifs_lso.open(blif_output_file);
+		// if (ifs_lso.fail())
+		// 	log_error("Can't open LSOracle output file `%s'.\n", blif_output_file.c_str());
 
-		printf("Finished LSO\n");
+		// printf("Finished LSO\n");
 
 		// std::string cec_script = stringf("cec %s %s", blif_input_file.c_str(), blif_output_file.c_str());
 		// cec_script = add_echos_to_abc_cmd(cec_script);
@@ -1166,10 +1167,56 @@ void abc_module(RTLIL::Design *design, RTLIL::Module *current_module, std::strin
 		// printf("Verification complete\n");
 
 		bool builtin_lib = liberty_file.empty();
-		RTLIL::Design *mapped_design = new RTLIL::Design;
-		parse_blif(mapped_design, ifs_lso, builtin_lib ? "\\DFF" : "\\_dff_", false, sop_mode);
+		// RTLIL::Design *mapped_design = new RTLIL::Design;
+		// parse_blif(mapped_design, ifs_lso, builtin_lib ? "\\DFF" : "\\_dff_", false, sop_mode);
 
-		ifs_lso.close();
+		// ifs_lso.close();
+
+
+		////////////////////////////  direcly merge  ////////////////////////////
+		std::system( ("sed -n 2p " + blif_input_file + " | tr -d '\n' | sed 's/.inputs //' > src/top.inputs").c_str() );
+		std::system( ("sed -n 3p " + blif_input_file + " | tr -d '\n' | sed 's/.outputs //' > src/top.outputs").c_str() );
+		std::system(("python3 " + gen_top_py + " -dir src").c_str());
+
+		RTLIL::Design *mapped_design = new RTLIL::Design;
+
+		for (const auto& entry : std::filesystem::directory_iterator("src"))
+		{
+			if ( entry.path().extension() == ".v" ) {  
+				Pass::call(mapped_design, "read_verilog " + entry.path().string());
+			}
+		}
+		Pass::call(mapped_design, "hierarchy -top top; flatten; techmap; opt -purge");
+		printf("Finished LSO\n");
+		std::system("rm src/*");
+		
+		// std::string cec_script = stringf("cec %s %s", blif_input_file.c_str(), "src/top.v");
+		// FILE *cec = fopen(stringf("%s/cec.script", tempdir_name.c_str()).c_str(), "wt");
+		// fprintf(cec, "%s\n", cec_script.c_str());
+		// fclose(cec);
+		// std::string cec_buffer = stringf("%s -s -f %s/cec.script 2>&1", abcexe_file.c_str(), tempdir_name.c_str());
+		// printf("Verifying LSOracle result is equivalent to original file...\n");
+		// Pass::call(mapped_design, "write_verilog -noattr src/top.v");
+		// #ifndef YOSYS_LINK_ABC
+		// 		ret = run_command(cec_buffer, std::bind(&abc_output_filter::next_line, filt, std::placeholders::_1));
+		// #else
+		// 		// These needs to be mutable, supposedly due to getopt
+		// 		char *abc_argv[5];
+		// 		string tmp_script_name = stringf("%s/cec.script", tempdir_name.c_str());
+		// 		abc_argv[0] = strdup(abcexe_file.c_str());
+		// 		abc_argv[1] = strdup("-s");
+		// 		abc_argv[2] = strdup("-f");
+		// 		abc_argv[3] = strdup(tmp_script_name.c_str());
+		// 		abc_argv[4] = 0;
+		// 		ret = Abc_RealMain(4, abc_argv);
+		// 		free(abc_argv[0]);
+		// 		free(abc_argv[1]);
+		// 		free(abc_argv[2]);
+		// 		free(abc_argv[3]);
+		// #endif
+		// std::system("rm src/top.v");
+		// if (ret != 0)
+		// 	log_error("ABC: execution of command \"%s\" failed: return code %d.\n", cec_buffer.c_str(), ret);
 
 		log_header(design, "Re-integrating LSOracle results.\n");
 		RTLIL::Module *mapped_mod = mapped_design->modules_["\\top"];
@@ -1543,6 +1590,7 @@ struct ORACLEPass : public Pass {
 #endif
 
 		std::string lsoexe_file = "lsoracle";
+		std::string gen_top_py;
 		size_t argidx;
 		char pwd [PATH_MAX];
 		if (!getcwd(pwd, sizeof(pwd))) {
@@ -1560,6 +1608,10 @@ struct ORACLEPass : public Pass {
 				}
 				if (arg == "-abc_exe" && argidx+1 < args.size()) {
 					abcexe_file = args[++argidx];
+					continue;
+				}
+				if (arg == "-gen_top_py" && argidx+1 < args.size()) {
+					gen_top_py = args[++argidx];
 					continue;
 				}
 				if (arg == "-script" && argidx+1 < args.size()) {
@@ -1667,7 +1719,7 @@ struct ORACLEPass : public Pass {
 				if (!dff_mode || !clk_str.empty()) {
 					abc_module(design, mod, script_file, abcexe_file, lsoexe_file, liberty_file, constr_file, cleanup, lut_costs, dff_mode, clk_str, keepff,
 							delay_target, sop_inputs, sop_products, lutin_shared, fast_mode, mod->selected_cells(), show_tempdir, sop_mode, abc_dress,
-						   num_parts, partitioned, exclu_part, mig, deep, merge, test, aig, xag, xmg, lut);
+						   num_parts, partitioned, exclu_part, mig, deep, merge, test, aig, xag, xmg, lut, gen_top_py);
 					continue;
 				}
 			}
