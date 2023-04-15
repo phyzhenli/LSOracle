@@ -216,13 +216,15 @@ template <typename network> void fix_names(partition_manager_junior<network> &pa
 }
 
 template <typename network>
-mockturtle::window_view<mockturtle::names_view<network>> fix_names2(partition_manager_junior<network> &partman, int index)
+mockturtle::window_view<mockturtle::names_view<network>> fix_names2(partition_manager_junior<network> &partman, int index, std::map<std::string, double> &inputs_delays)
 {
     mockturtle::window_view<mockturtle::names_view<network>> part = partman.partition(index);
     mockturtle::names_view<network> ntk = partman.get_network();
-    part.foreach_pi([&part, &ntk](typename network::node n) {
+    mockturtle::depth_view depth_ntk{ntk};
+    part.foreach_pi([&part, &ntk, &inputs_delays, &depth_ntk](typename network::node n) {
         std::string name = get_node_name_or_default(ntk, n);
         part.set_name(part.make_signal(n), name);
+        inputs_delays[name] = 20*depth_ntk.level(n);
     });
     int feedthrough = 0;
     part.foreach_po([&part, &ntk, &feedthrough](typename network::signal s, int i) {
@@ -1425,7 +1427,8 @@ optimizer<network> *optimize(optimization_strategy_comparator<network> &comparat
     // const mockturtle::window_view<mockturtle::names_view<network>> part = partman.partition(index);
     // todo remove double network.
     // fix_names(partman, part, partman.get_network(), index);
-    const mockturtle::window_view<mockturtle::names_view<network>> part = fix_names2(partman, index);
+    std::map<std::string, double> inputs_delays;
+    const mockturtle::window_view<mockturtle::names_view<network>> part = fix_names2(partman, index, inputs_delays);
     std::vector<optimizer<network>*>optimizers {
         new noop<network>(index, part, strategy, abc_exec),
         new migscript_optimizer<network>(index, part, strategy, abc_exec),
@@ -1540,9 +1543,9 @@ string join(std::string delim, std::set<string> input)
     }
 }
 
-void create_script(std::string script_dir, std::map<std::string, std::string> bench_info, std::string dc_compile_command, double clk_period)
+void create_script(std::string filename, std::map<std::string, std::string> bench_info, std::string dc_compile_command, double clk_period, std::map<std::string, double> inputs_delays)
 {
-    std::ofstream outfile(script_dir + "/top.tcl");
+    std::ofstream outfile(filename);
     outfile << "set TOP                   " + bench_info["top"] << std::endl;
     outfile << std::endl;
     outfile << "set CONSTRAINT_VIOLATION  reports/${TOP}_vio.rpt" << std::endl;
@@ -1567,8 +1570,10 @@ void create_script(std::string script_dir, std::map<std::string, std::string> be
     outfile << std::endl;
     if (bench_info["type"] == "combinational") {
         outfile << "create_clock -period " + std::to_string(clk_period) + " -name VCLK" << std::endl;
-        outfile << "set_input_delay  0 -clock VCLK [all_inputs]" << std::endl;
+        for ( auto &ele : inputs_delays )
+            outfile << "set_input_delay  " + std::to_string(ele.second) + " -clock VCLK {" + ele.first + "}" << std::endl;
         outfile << "set_output_delay 0 -clock VCLK [all_outputs]" << std::endl;
+        
     }
     if (bench_info["type"] == "sequential") {
         std::vector<std::string> clk_vec = lorina::detail::split(bench_info["clk(s)"], " ");
@@ -1685,7 +1690,8 @@ vector<optimizer<network> *> optimize1(optimization_strategy_comparator<network>
     // const mockturtle::window_view<mockturtle::names_view<network>> part = partman.partition(index);
     // todo remove double network.
     // fix_names(partman, part, partman.get_network(), index);
-    const mockturtle::window_view<mockturtle::names_view<network>> part = fix_names2(partman, index);
+    std::map<std::string, double> inputs_delays;
+    const mockturtle::window_view<mockturtle::names_view<network>> part = fix_names2(partman, index, inputs_delays);
     std::vector<optimizer<network>*>optimizers {
         new noop<network>(index, part, strategy, abc_exec),
         new migscript_optimizer<network>(index, part, strategy, abc_exec),
@@ -1791,7 +1797,7 @@ vector<optimizer<network> *> optimize1(optimization_strategy_comparator<network>
                 std::map<std::string, std::string> bench_info;
                 bench_info["top"] = part_script_name;
                 bench_info["type"] = "combinational";
-                create_script("scripts", bench_info, "compile -map_effort high", 0);
+                create_script("scripts/top.tcl", bench_info, "compile -map_effort high", 0, inputs_delays);
                 std::system("dc_shell -f scripts/top.tcl -output_log_file log > /dev/null");
                 power_delay_slack_area pdsa = get_pdsa(part_script_name, "reports");
                 remove_files("reports");
