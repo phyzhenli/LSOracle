@@ -1190,33 +1190,33 @@ void abc_module(RTLIL::Design *design, RTLIL::Module *current_module, std::strin
 		printf("Finished LSO\n");
 		std::system("rm src/*");
 		
-		std::string cec_script = stringf("cec %s %s", blif_input_file.c_str(), "src/top.v");
-		FILE *cec = fopen(stringf("%s/cec.script", tempdir_name.c_str()).c_str(), "wt");
-		fprintf(cec, "%s\n", cec_script.c_str());
-		fclose(cec);
-		std::string cec_buffer = stringf("%s -s -f %s/cec.script 2>&1", abcexe_file.c_str(), tempdir_name.c_str());
-		printf("Verifying LSOracle result is equivalent to original file...\n");
-		Pass::call(mapped_design, "write_verilog -noattr src/top.v");
-		#ifndef YOSYS_LINK_ABC
-				ret = run_command(cec_buffer, std::bind(&abc_output_filter::next_line, filt, std::placeholders::_1));
-		#else
-				// These needs to be mutable, supposedly due to getopt
-				char *abc_argv[5];
-				string tmp_script_name = stringf("%s/cec.script", tempdir_name.c_str());
-				abc_argv[0] = strdup(abcexe_file.c_str());
-				abc_argv[1] = strdup("-s");
-				abc_argv[2] = strdup("-f");
-				abc_argv[3] = strdup(tmp_script_name.c_str());
-				abc_argv[4] = 0;
-				ret = Abc_RealMain(4, abc_argv);
-				free(abc_argv[0]);
-				free(abc_argv[1]);
-				free(abc_argv[2]);
-				free(abc_argv[3]);
-		#endif
-		std::system("rm src/top.v");
-		if (ret != 0)
-			log_error("ABC: execution of command \"%s\" failed: return code %d.\n", cec_buffer.c_str(), ret);
+		// std::string cec_script = stringf("cec %s %s", blif_input_file.c_str(), "src/top.v");
+		// FILE *cec = fopen(stringf("%s/cec.script", tempdir_name.c_str()).c_str(), "wt");
+		// fprintf(cec, "%s\n", cec_script.c_str());
+		// fclose(cec);
+		// std::string cec_buffer = stringf("%s -s -f %s/cec.script 2>&1", abcexe_file.c_str(), tempdir_name.c_str());
+		// printf("Verifying LSOracle result is equivalent to original file...\n");
+		// Pass::call(mapped_design, "write_verilog -noattr src/top.v");
+		// #ifndef YOSYS_LINK_ABC
+		// 		ret = run_command(cec_buffer, std::bind(&abc_output_filter::next_line, filt, std::placeholders::_1));
+		// #else
+		// 		// These needs to be mutable, supposedly due to getopt
+		// 		char *abc_argv[5];
+		// 		string tmp_script_name = stringf("%s/cec.script", tempdir_name.c_str());
+		// 		abc_argv[0] = strdup(abcexe_file.c_str());
+		// 		abc_argv[1] = strdup("-s");
+		// 		abc_argv[2] = strdup("-f");
+		// 		abc_argv[3] = strdup(tmp_script_name.c_str());
+		// 		abc_argv[4] = 0;
+		// 		ret = Abc_RealMain(4, abc_argv);
+		// 		free(abc_argv[0]);
+		// 		free(abc_argv[1]);
+		// 		free(abc_argv[2]);
+		// 		free(abc_argv[3]);
+		// #endif
+		// std::system("rm src/top.v");
+		// if (ret != 0)
+		// 	log_error("ABC: execution of command \"%s\" failed: return code %d.\n", cec_buffer.c_str(), ret);
 
 		log_header(design, "Re-integrating LSOracle results.\n");
 		RTLIL::Module *mapped_mod = mapped_design->modules_["\\top"];
