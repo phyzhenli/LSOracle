@@ -216,7 +216,34 @@ template <typename network> void fix_names(partition_manager_junior<network> &pa
 }
 
 template <typename network>
-mockturtle::window_view<mockturtle::names_view<network>> fix_names2(partition_manager_junior<network> &partman, int index, std::map<std::string, double> &inputs_delays)
+mockturtle::window_view<mockturtle::names_view<network>> fix_names2(partition_manager_junior<network> &partman, int index)
+{
+    mockturtle::window_view<mockturtle::names_view<network>> part = partman.partition(index);
+    mockturtle::names_view<network> ntk = partman.get_network();
+    part.foreach_pi([&part, &ntk](typename network::node n) {
+        std::string name = get_node_name_or_default(ntk, n);
+        part.set_name(part.make_signal(n), name);
+    });
+    int feedthrough = 0;
+    part.foreach_po([&part, &ntk, &feedthrough](typename network::signal s, int i) {
+        typename network::node n = part.get_node(s);
+        if (ntk.is_pi(n)) {
+            feedthrough++;
+            // skip feedthroughs
+            // return;
+        }
+        int digits_gate = std::to_string(ntk.num_gates()).length();
+        std::string name = fmt::format("node__{0:0{1}}", n, digits_gate);
+        part.set_output_name(i, name);
+    });
+    if (feedthrough > 0 ) {
+        std::cout << "Skipped renaming for " << feedthrough << " feedthrough." << std::endl;
+    }
+    return part;
+}
+
+template <typename network>
+mockturtle::window_view<mockturtle::names_view<network>> fix_names3(partition_manager_junior<network> &partman, int index, std::map<std::string, double> &inputs_delays)
 {
     mockturtle::window_view<mockturtle::names_view<network>> part = partman.partition(index);
     mockturtle::names_view<network> ntk = partman.get_network();
@@ -1427,8 +1454,7 @@ optimizer<network> *optimize(optimization_strategy_comparator<network> &comparat
     // const mockturtle::window_view<mockturtle::names_view<network>> part = partman.partition(index);
     // todo remove double network.
     // fix_names(partman, part, partman.get_network(), index);
-    std::map<std::string, double> inputs_delays;
-    const mockturtle::window_view<mockturtle::names_view<network>> part = fix_names2(partman, index, inputs_delays);
+    const mockturtle::window_view<mockturtle::names_view<network>> part = fix_names2(partman, index);
     std::vector<optimizer<network>*>optimizers {
         new noop<network>(index, part, strategy, abc_exec),
         new migscript_optimizer<network>(index, part, strategy, abc_exec),
@@ -1690,21 +1716,21 @@ vector<optimizer<network> *> optimize1(optimization_strategy_comparator<network>
     // const mockturtle::window_view<mockturtle::names_view<network>> part = partman.partition(index);
     // todo remove double network.
     // fix_names(partman, part, partman.get_network(), index);
-    std::map<std::string, double> inputs_delays;
-    const mockturtle::window_view<mockturtle::names_view<network>> part = fix_names2(partman, index, inputs_delays);
+    // std::map<std::string, double> inputs_delays;
+    const mockturtle::window_view<mockturtle::names_view<network>> part = fix_names2(partman, index);
     std::vector<optimizer<network>*>optimizers {
-        new noop<network>(index, part, strategy, abc_exec),
-        new migscript_optimizer<network>(index, part, strategy, abc_exec),
-        // new migscript2_optimizer<network>(index, part, strategy, abc_exec),
-        new migscript3_optimizer<network>(index, part, strategy, abc_exec),
-        new aigscript_optimizer<network>(index, part, strategy, abc_exec),
-        new aigscript2_optimizer<network>(index, part, strategy, abc_exec),
-        new aigscript3_optimizer<network>(index, part, strategy, abc_exec),
-        new aigscript4_optimizer<network>(index, part, strategy, abc_exec),
-        new aigscript5_optimizer<network>(index, part, strategy, abc_exec),
-        new xmg_optimizer<network>(index, part, strategy, abc_exec),
-        new xag_optimizer<network>(index, part, strategy, abc_exec),
-        // new abc_resyn2_optimizer<network>(index, part, strategy, abc_exec),
+        // new noop<network>(index, part, strategy, abc_exec),
+        // new migscript_optimizer<network>(index, part, strategy, abc_exec),
+        // // new migscript2_optimizer<network>(index, part, strategy, abc_exec),
+        // new migscript3_optimizer<network>(index, part, strategy, abc_exec),
+        // new aigscript_optimizer<network>(index, part, strategy, abc_exec),
+        // new aigscript2_optimizer<network>(index, part, strategy, abc_exec),
+        // new aigscript3_optimizer<network>(index, part, strategy, abc_exec),
+        // new aigscript4_optimizer<network>(index, part, strategy, abc_exec),
+        // new aigscript5_optimizer<network>(index, part, strategy, abc_exec),
+        // new xmg_optimizer<network>(index, part, strategy, abc_exec),
+        // new xag_optimizer<network>(index, part, strategy, abc_exec),
+        new abc_resyn2_optimizer<network>(index, part, strategy, abc_exec),
         // new abc_resyn2rs_optimizer<network>(index, part, strategy, abc_exec),
         // new abc_fraig_resyn2_optimizer<network>(index, part, strategy, abc_exec),
         // new abc_fraig_dc2_resyn2_optimizer<network>(index, part, strategy, abc_exec),
@@ -1793,39 +1819,39 @@ vector<optimizer<network> *> optimize1(optimization_strategy_comparator<network>
 
                 std::string part_script_name = "part_" + std::to_string(index) + "_" + (*opt)->optimizer_name();
                 // (*opt)->write_original( part_script_name + "_original" );
-                (*opt)->write_optimal ( part_script_name, "src/" + part_script_name + ".v" );
-                std::map<std::string, std::string> bench_info;
-                bench_info["top"] = part_script_name;
-                bench_info["type"] = "combinational";
-                create_script("scripts/top.tcl", bench_info, "compile -map_effort high", 0, inputs_delays);
-                std::system("dc_shell -f scripts/top.tcl -output_log_file log > /dev/null");
-                power_delay_slack_area pdsa = get_pdsa(part_script_name, "reports");
-                remove_files("reports");
-                remove_files("src");
+                (*opt)->write_optimal ( part_script_name, "outputs/" + part_script_name + "_mapped.v" );
+                // std::map<std::string, std::string> bench_info;
+                // bench_info["top"] = part_script_name;
+                // bench_info["type"] = "combinational";
+                // create_script("scripts/top.tcl", bench_info, "compile -map_effort high", 0, inputs_delays);
+                // std::system("dc_shell -f scripts/top.tcl -output_log_file log > /dev/null");
+                // power_delay_slack_area pdsa = get_pdsa(part_script_name, "reports");
+                // remove_files("reports");
+                // remove_files("src");
 
-                (*opt)->set_pdsa(pdsa.power, pdsa.delay, pdsa.slack, pdsa.area);
-                std::cout << "area: " << pdsa.area << "; delay: " << pdsa.delay << "; ADP: " << fabs( pdsa.area*pdsa.delay ) << std::endl;
+                // (*opt)->set_pdsa(pdsa.power, pdsa.delay, pdsa.slack, pdsa.area);
+                // std::cout << "area: " << pdsa.area << "; delay: " << pdsa.delay << "; ADP: " << fabs( pdsa.area*pdsa.delay ) << std::endl;
 
                 if (best == nullptr) {
                     best = *opt;
                     optimizersave.push_back(best);
                     continue;
                 }
-                // if (comparator(**opt, *best)) {
-                //     best = *opt;
-                //     optimizersave[0]=best;
-                //     //std::cout << "found a better result" << std::endl;
-                //     continue;
-                // node_depth result3 = best->independent_metric();
-                // }
-
-                double best_ADP = fabs( (best)->get_pdsa().area * (best)->get_pdsa().delay );
-                double current_ADP = fabs( (*opt)->get_pdsa().area * (*opt)->get_pdsa().delay );
-                if ( current_ADP < best_ADP ) {
+                if (comparator(**opt, *best)) {
                     best = *opt;
                     optimizersave[0]=best;
+                    //std::cout << "found a better result" << std::endl;
                     continue;
+                node_depth result3 = best->independent_metric();
                 }
+
+                // double best_ADP = fabs( (best)->get_pdsa().area * (best)->get_pdsa().delay );
+                // double current_ADP = fabs( (*opt)->get_pdsa().area * (*opt)->get_pdsa().delay );
+                // if ( current_ADP < best_ADP ) {
+                //     best = *opt;
+                //     optimizersave[0]=best;
+                //     continue;
+                // }
             }
         }
     }
