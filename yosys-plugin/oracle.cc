@@ -752,7 +752,7 @@ std::string prepend_script_file(std::string script_file, std::string input_file,
 	return lso_script.str();
 }
 
-std::string generate_lso_script(std::string exe_file, std::string abcexe_file, std::string input_aig_file, std::string output_blif_file,
+std::string generate_lso_script(std::string exe_file, std::string abcexe_file, std::string input_aig_file, std::string output_blif_file, std::string output_verilog_file,
 			std::string num_parts, bool partitioned, bool exclu_part, bool mig,
 				bool deep, bool merge, bool test, bool aig, bool xag, bool xmg, bool lut)
 {
@@ -806,7 +806,7 @@ std::string generate_lso_script(std::string exe_file, std::string abcexe_file, s
 			else if (xag)
 				lso_script += !lut ? stringf("; write_blif -x %s", output_blif_file.c_str()) : stringf("; lut_map -x -o %s", output_blif_file.c_str());
 			else if (xmg)
-				lso_script += !lut ? stringf("; write_gblif -g %s", output_blif_file.c_str()) : stringf("; lut_map -g -o %s", output_blif_file.c_str());
+				lso_script += !lut ? stringf("; write_verilog -g %s", output_verilog_file.c_str()) : stringf("; lut_map -g -o %s", output_blif_file.c_str());
 			else
 				lso_script += !lut ? stringf("; write_blif -m %s", output_blif_file.c_str()) : stringf("; lut_map -m -o %s", output_blif_file.c_str());
 		}
@@ -911,6 +911,7 @@ void abc_module(RTLIL::Design *design, RTLIL::Module *current_module, std::strin
 	std::string aiger_temp_file = tempdir_name + "/abc.aig";
 	std::string tmp_script_name = tempdir_name + "/abc.script";
 	std::string blif_output_file = tempdir_name + "/output.blif";
+	std::string verilog_output_file = tempdir_name + "/output.v";
 
 	log_header(design, "Extracting gate netlist of module `%s' to `%s/input.blif'..\n",
 			module->name.c_str(), replace_tempdir(tempdir_name, tempdir_name, show_tempdir).c_str());
@@ -1079,6 +1080,54 @@ void abc_module(RTLIL::Design *design, RTLIL::Module *current_module, std::strin
 	{
 		log_header(design, "Executing ABC.\n");
 
+
+		f = fopen( (tempdir_name+"/stdcells.genlib").c_str(), "w" );
+		if (f == nullptr)
+			log_error("Opening %s for writing failed: %s\n", (tempdir_name+"/stdcells.genlib").c_str(), strerror(errno));
+		fprintf(f, "GATE ZERO    1 Y=CONST0;\n");
+		fprintf(f, "GATE ONE     1 Y=CONST1;\n");
+		fprintf(f, "GATE BUF    %d Y=A;                  PIN * NONINV  1 999 1 0 1 0\n", 1);
+		fprintf(f, "GATE NOT    %d Y=!A;                 PIN * INV     1 999 1 0 1 0\n", 2);
+		// if (enabled_gates.count("AND"))
+			fprintf(f, "GATE AND    %d Y=A*B;                PIN * NONINV  1 999 1 0 1 0\n", 4);
+		// if (enabled_gates.count("NAND"))
+			fprintf(f, "GATE NAND   %d Y=!(A*B);             PIN * INV     1 999 1 0 1 0\n", 4);
+		// if (enabled_gates.count("OR"))
+			fprintf(f, "GATE OR     %d Y=A+B;                PIN * NONINV  1 999 1 0 1 0\n", 4);
+		// if (enabled_gates.count("NOR"))
+			fprintf(f, "GATE NOR    %d Y=!(A+B);             PIN * INV     1 999 1 0 1 0\n", 4);
+		// if (enabled_gates.count("XOR"))
+			fprintf(f, "GATE XOR    %d Y=(A*!B)+(!A*B);      PIN * UNKNOWN 1 999 1 0 1 0\n", 5);
+		// if (enabled_gates.count("XNOR"))
+			fprintf(f, "GATE XNOR   %d Y=(A*B)+(!A*!B);      PIN * UNKNOWN 1 999 1 0 1 0\n", 5);
+		// if (enabled_gates.count("ANDNOT"))
+			fprintf(f, "GATE ANDNOT %d Y=A*!B;               PIN * UNKNOWN 1 999 1 0 1 0\n", 4);
+		// if (enabled_gates.count("ORNOT"))
+			fprintf(f, "GATE ORNOT  %d Y=A+!B;               PIN * UNKNOWN 1 999 1 0 1 0\n", 4);
+		// if (enabled_gates.count("AOI3"))
+			fprintf(f, "GATE AOI3   %d Y=!((A*B)+C);         PIN * INV     1 999 1 0 1 0\n", 6);
+		// if (enabled_gates.count("OAI3"))
+			fprintf(f, "GATE OAI3   %d Y=!((A+B)*C);         PIN * INV     1 999 1 0 1 0\n", 6);
+		// if (enabled_gates.count("AOI4"))
+			fprintf(f, "GATE AOI4   %d Y=!((A*B)+(C*D));     PIN * INV     1 999 1 0 1 0\n", 7);
+		// if (enabled_gates.count("OAI4"))
+			fprintf(f, "GATE OAI4   %d Y=!((A+B)*(C+D));     PIN * INV     1 999 1 0 1 0\n", 7);
+		// if (enabled_gates.count("MUX"))
+			fprintf(f, "GATE MUX    %d Y=(A*B)+(S*B)+(!S*A); PIN * UNKNOWN 1 999 1 0 1 0\n", 4);
+		// if (enabled_gates.count("NMUX"))
+			fprintf(f, "GATE NMUX   %d Y=!((A*B)+(S*B)+(!S*A)); PIN * UNKNOWN 1 999 1 0 1 0\n", 4);
+		if (map_mux4)
+			fprintf(f, "GATE MUX4   %d Y=(!S*!T*A)+(S*!T*B)+(!S*T*C)+(S*T*D); PIN * UNKNOWN 1 999 1 0 1 0\n", 2*4);
+		if (map_mux8)
+			fprintf(f, "GATE MUX8   %d Y=(!S*!T*!U*A)+(S*!T*!U*B)+(!S*T*!U*C)+(S*T*!U*D)+(!S*!T*U*E)+(S*!T*U*F)+(!S*T*U*G)+(S*T*U*H); PIN * UNKNOWN 1 999 1 0 1 0\n", 4*4);
+		if (map_mux16)
+			fprintf(f, "GATE MUX16  %d Y=(!S*!T*!U*!V*A)+(S*!T*!U*!V*B)+(!S*T*!U*!V*C)+(S*T*!U*!V*D)+(!S*!T*U*!V*E)+(S*!T*U*!V*F)+(!S*T*U*!V*G)+(S*T*U*!V*H)+(!S*!T*!U*V*I)+(S*!T*!U*V*J)+(!S*T*!U*V*K)+(S*T*!U*V*L)+(!S*!T*U*V*M)+(S*!T*U*V*N)+(!S*T*U*V*O)+(S*T*U*V*P); PIN * UNKNOWN 1 999 1 0 1 0\n", 8*4);
+
+		fprintf(f, "GATE MAJ3  %d Y=(A&B)+(A&C)+(B&C);  PIN * NONINV  1 999 1 0 1 0\n", 8);
+		fprintf(f, "GATE XOR3  %d Y=A^B^C;              PIN * NONINV  1 999 1 0 1 0\n", 6);
+
+		fclose(f);
+
 		std::string abc_command = stringf("%s -s -f %s 2>&1", abcexe_file.c_str(), tmp_script_name.c_str());
 		log("Running ABC command: %s\n", replace_tempdir(abc_command, tempdir_name, show_tempdir).c_str());
 
@@ -1111,7 +1160,7 @@ void abc_module(RTLIL::Design *design, RTLIL::Module *current_module, std::strin
 		std::string lso_script;
 		if (script_file == "") {
 		// TODO pass temp filenames
-			lso_script = generate_lso_script(lsoexe_file, abcexe_file, aiger_temp_file, blif_output_file, num_parts,
+			lso_script = generate_lso_script(lsoexe_file, abcexe_file, aiger_temp_file, blif_output_file, verilog_output_file, num_parts,
 							 partitioned, exclu_part, mig, deep, merge, test, aig, xag, xmg, lut);
 
 		} else {
@@ -1121,50 +1170,51 @@ void abc_module(RTLIL::Design *design, RTLIL::Module *current_module, std::strin
 
 		lso_module(lsoexe_file, tempdir_name, show_tempdir, script);
 
-		printf("%s\n", blif_output_file.c_str());
-		// std::ifstream ifs_lso;
-		// ifs_lso.open(blif_output_file);
-		// if (ifs_lso.fail())
-		// 	log_error("Can't open LSOracle output file `%s'.\n", blif_output_file.c_str());
+		printf("%s\n", verilog_output_file.c_str());
+		std::ifstream ifs_lso;
+		ifs_lso.open(verilog_output_file);
+		if (ifs_lso.fail())
+			log_error("Can't open LSOracle output file `%s'.\n", verilog_output_file.c_str());
 
-		// printf("Finished LSO\n");
+		printf("Finished LSO\n");
 
-		// std::string cec_script = stringf("cec %s %s", blif_input_file.c_str(), blif_output_file.c_str());
-		// cec_script = add_echos_to_abc_cmd(cec_script);
+		std::string cec_script = stringf("read_library %s; ", (tempdir_name+"/stdcells.genlib").c_str());
+		cec_script += stringf("cec %s %s", blif_input_file.c_str(), verilog_output_file.c_str());
+		cec_script = add_echos_to_abc_cmd(cec_script);
 
-		// for (size_t i = 0; i+1 < cec_script.size(); i++)
-		// 	if (cec_script[i] == ';' && cec_script[i+1] == ' ')
-		// 		cec_script[i+1] = '\n';
+		for (size_t i = 0; i+1 < cec_script.size(); i++)
+			if (cec_script[i] == ';' && cec_script[i+1] == ' ')
+				cec_script[i+1] = '\n';
 
-		// FILE *cec = fopen(stringf("%s/cec.script", tempdir_name.c_str()).c_str(), "wt");
-		// fprintf(cec, "%s\n", cec_script.c_str());
-		// fclose(cec);
+		FILE *cec = fopen(stringf("%s/cec.script", tempdir_name.c_str()).c_str(), "wt");
+		fprintf(cec, "%s\n", cec_script.c_str());
+		fclose(cec);
 
-		// std::string cec_buffer = stringf("%s -s -f %s/cec.script 2>&1", abcexe_file.c_str(), tempdir_name.c_str());
+		std::string cec_buffer = stringf("%s -s -f %s/cec.script 2>&1", abcexe_file.c_str(), tempdir_name.c_str());
 
-		// printf("Verifying LSOracle result is equivalent to original file\n");
+		printf("Verifying LSOracle result is equivalent to original file\n");
 
-		// #ifndef YOSYS_LINK_ABC
-		// 		ret = run_command(cec_buffer, std::bind(&abc_output_filter::next_line, filt, std::placeholders::_1));
-		// #else
-		// 		// These needs to be mutable, supposedly due to getopt
-		// 		char *abc_argv[5];
-		// 		string tmp_script_name = stringf("%s/cec.script", tempdir_name.c_str());
-		// 		abc_argv[0] = strdup(abcexe_file.c_str());
-		// 		abc_argv[1] = strdup("-s");
-		// 		abc_argv[2] = strdup("-f");
-		// 		abc_argv[3] = strdup(tmp_script_name.c_str());
-		// 		abc_argv[4] = 0;
-		// 		ret = Abc_RealMain(4, abc_argv);
-		// 		free(abc_argv[0]);
-		// 		free(abc_argv[1]);
-		// 		free(abc_argv[2]);
-		// 		free(abc_argv[3]);
-		// #endif
-		// 		if (ret != 0)
-		// 			log_error("ABC: execution of command \"%s\" failed: return code %d.\n", cec_buffer.c_str(), ret);
+		#ifndef YOSYS_LINK_ABC
+				ret = run_command(cec_buffer, std::bind(&abc_output_filter::next_line, filt, std::placeholders::_1));
+		#else
+				// These needs to be mutable, supposedly due to getopt
+				char *abc_argv[5];
+				string tmp_script_name = stringf("%s/cec.script", tempdir_name.c_str());
+				abc_argv[0] = strdup(abcexe_file.c_str());
+				abc_argv[1] = strdup("-s");
+				abc_argv[2] = strdup("-f");
+				abc_argv[3] = strdup(tmp_script_name.c_str());
+				abc_argv[4] = 0;
+				ret = Abc_RealMain(4, abc_argv);
+				free(abc_argv[0]);
+				free(abc_argv[1]);
+				free(abc_argv[2]);
+				free(abc_argv[3]);
+		#endif
+				if (ret != 0)
+					log_error("ABC: execution of command \"%s\" failed: return code %d.\n", cec_buffer.c_str(), ret);
 
-		// printf("Verification complete\n");
+		printf("Verification complete\n");
 
 		bool builtin_lib = liberty_file.empty();
 		// RTLIL::Design *mapped_design = new RTLIL::Design;
@@ -1174,21 +1224,21 @@ void abc_module(RTLIL::Design *design, RTLIL::Module *current_module, std::strin
 
 
 		////////////////////////////  direcly merge  ////////////////////////////
-		std::system( ("sed -n 2p " + blif_input_file + " | tr -d '\n' | sed 's/.inputs //' > src/top.inputs").c_str() );
-		std::system( ("sed -n 3p " + blif_input_file + " | tr -d '\n' | sed 's/.outputs //' > src/top.outputs").c_str() );
-		std::system(("python3 " + gen_top_py + " -dir src").c_str());
+		// std::system( ("sed -n 2p " + blif_input_file + " | tr -d '\n' | sed 's/.inputs //' > src/top.inputs").c_str() );
+		// std::system( ("sed -n 3p " + blif_input_file + " | tr -d '\n' | sed 's/.outputs //' > src/top.outputs").c_str() );
+		// std::system(("python3 " + gen_top_py + " -dir src").c_str());
 
-		RTLIL::Design *mapped_design = new RTLIL::Design;
+		// RTLIL::Design *mapped_design = new RTLIL::Design;
 
-		for (const auto& entry : std::filesystem::directory_iterator("src"))
-		{
-			if ( entry.path().extension() == ".v" ) {  
-				Pass::call(mapped_design, "read_verilog " + entry.path().string());
-			}
-		}
-		Pass::call(mapped_design, "hierarchy -top top; flatten; techmap; opt -purge");
-		printf("Finished LSO\n");
-		std::system("rm src/*");
+		// for (const auto& entry : std::filesystem::directory_iterator("src"))
+		// {
+		// 	if ( entry.path().extension() == ".v" ) {  
+		// 		Pass::call(mapped_design, "read_verilog " + entry.path().string());
+		// 	}
+		// }
+		// Pass::call(mapped_design, "hierarchy -top top; flatten; techmap; opt -purge");
+		// printf("Finished LSO\n");
+		// std::system("rm src/*");
 		
 		// std::string cec_script = stringf("cec %s %s", blif_input_file.c_str(), "src/top.v");
 		// FILE *cec = fopen(stringf("%s/cec.script", tempdir_name.c_str()).c_str(), "wt");
@@ -1217,6 +1267,11 @@ void abc_module(RTLIL::Design *design, RTLIL::Module *current_module, std::strin
 		// std::system("rm src/top.v");
 		// if (ret != 0)
 		// 	log_error("ABC: execution of command \"%s\" failed: return code %d.\n", cec_buffer.c_str(), ret);
+
+		////////////////////////////////////////////////
+		RTLIL::Design *mapped_design = new RTLIL::Design;
+		Pass::call(mapped_design, "read_verilog " + verilog_output_file);
+		Pass::call(mapped_design, "hierarchy -check -top top; flatten; techmap; opt -purge");
 
 		log_header(design, "Re-integrating LSOracle results.\n");
 		RTLIL::Module *mapped_mod = mapped_design->modules_["\\top"];
