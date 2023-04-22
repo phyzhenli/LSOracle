@@ -50,7 +50,7 @@ public:
                         "Verilog file to write out to")->required();
         add_flag("--mig,-m", "Read from the MIG network");
         add_flag("--xag,-x", "Read from the XAG network");
-        add_flag("--xmg,-g", "Read from the XAG network");
+        add_flag("--xmg,-g", "Read from the XMG network");
 
         //add_flag("--skip-feedthrough", "Do not include feedthrough nets when writing out the file");
     }
