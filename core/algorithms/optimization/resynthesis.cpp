@@ -1719,18 +1719,18 @@ vector<optimizer<network> *> optimize1(optimization_strategy_comparator<network>
     // std::map<std::string, double> inputs_delays;
     const mockturtle::window_view<mockturtle::names_view<network>> part = fix_names2(partman, index);
     std::vector<optimizer<network>*>optimizers {
-        new noop<network>(index, part, strategy, abc_exec),
-        new migscript_optimizer<network>(index, part, strategy, abc_exec),
-        // new migscript2_optimizer<network>(index, part, strategy, abc_exec),
-        new migscript3_optimizer<network>(index, part, strategy, abc_exec),
-        new aigscript_optimizer<network>(index, part, strategy, abc_exec),
-        new aigscript2_optimizer<network>(index, part, strategy, abc_exec),
-        new aigscript3_optimizer<network>(index, part, strategy, abc_exec),
-        new aigscript4_optimizer<network>(index, part, strategy, abc_exec),
-        new aigscript5_optimizer<network>(index, part, strategy, abc_exec),
-        new xmg_optimizer<network>(index, part, strategy, abc_exec),
-        new xag_optimizer<network>(index, part, strategy, abc_exec),
-        // new abc_resyn2_optimizer<network>(index, part, strategy, abc_exec),
+        // new noop<network>(index, part, strategy, abc_exec),
+        // new migscript_optimizer<network>(index, part, strategy, abc_exec),
+        // // new migscript2_optimizer<network>(index, part, strategy, abc_exec),
+        // new migscript3_optimizer<network>(index, part, strategy, abc_exec),
+        // new aigscript_optimizer<network>(index, part, strategy, abc_exec),
+        // new aigscript2_optimizer<network>(index, part, strategy, abc_exec),
+        // new aigscript3_optimizer<network>(index, part, strategy, abc_exec),
+        // new aigscript4_optimizer<network>(index, part, strategy, abc_exec),
+        // new aigscript5_optimizer<network>(index, part, strategy, abc_exec),
+        // new xmg_optimizer<network>(index, part, strategy, abc_exec),
+        // new xag_optimizer<network>(index, part, strategy, abc_exec),
+        new abc_resyn2_optimizer<network>(index, part, strategy, abc_exec),
         // new abc_resyn2rs_optimizer<network>(index, part, strategy, abc_exec),
         // new abc_fraig_resyn2_optimizer<network>(index, part, strategy, abc_exec),
         // new abc_fraig_dc2_resyn2_optimizer<network>(index, part, strategy, abc_exec),
@@ -1804,7 +1804,7 @@ vector<optimizer<network> *> optimize1(optimization_strategy_comparator<network>
                     << " size " << result.nodes << std::endl;
             std::string part_script_name = "part_" + std::to_string(index) + "_" + optimizers[0]->optimizer_name();
             // optimizers[0]->write_original( part_script_name + "_original" );
-            // optimizers[0]->write_optimal ( part_script_name, "outputs/" + part_script_name + "_mapped.v" );
+            optimizers[0]->write_optimal ( part_script_name, "outputs/" + part_script_name + "_mapped.v" );
             best = optimizers[0];
             optimizersave.push_back(best);
         }
@@ -1817,9 +1817,9 @@ vector<optimizer<network> *> optimize1(optimization_strategy_comparator<network>
                 std::cout << "result depth " << result.depth
                         << " size " << result.nodes << std::endl;
 
-                // std::string part_script_name = "part_" + std::to_string(index) + "_" + (*opt)->optimizer_name();
-                // // (*opt)->write_original( part_script_name + "_original" );
-                // (*opt)->write_optimal ( part_script_name, "src/" + part_script_name + ".v" );
+                std::string part_script_name = "part_" + std::to_string(index) + "_" + (*opt)->optimizer_name();
+                // (*opt)->write_original( part_script_name + "_original" );
+                (*opt)->write_optimal ( part_script_name, "outputs/" + part_script_name + "_mapped.v" );
                 // std::map<std::string, std::string> bench_info;
                 // bench_info["top"] = part_script_name;
                 // bench_info["type"] = "combinational";
@@ -2483,26 +2483,26 @@ xmg_names optimize_basic (
   }
   
   for (int i = 0; i < num_parts; i++) {
-    // const mockturtle::window_view<mockturtle::names_view<network>> part = partitions.partition(i);
-    // if ( part.num_gates() == 0 && part.num_cos() == 0 )
-    //     continue;
-    // else {
+    const mockturtle::window_view<mockturtle::names_view<network>> part = partitions.partition(i);
+    if ( part.num_gates() == 0 && part.num_cos() == 0 )
+        continue;
+    else {
         optimizersave = optimize1(*target, strategy, partitions, i, abc_exec, reoptimize_bool);
         optimized.push_back(optimizersave);
-    // }
+    }
   }
 
-//   for( auto &opt : optimized ) {
-//     std::string best_part_script_name = "part_" + std::to_string(opt.back()->get_partition_id()) + "_" + opt.back()->optimizer_name();
-//     std::rename( ("outputs/" + best_part_script_name + "_mapped.v").c_str(), ("src/" + best_part_script_name + ".v").c_str() );
-//     opt.back()->write_ports("src/" + best_part_script_name + ".ports");
-//   }
-//   remove_files("outputs");
+  for( auto &opt : optimized ) {
+    std::string best_part_script_name = "part_" + std::to_string(opt.back()->get_partition_id()) + "_" + opt.back()->optimizer_name();
+    std::rename( ("outputs/" + best_part_script_name + "_mapped.v").c_str(), ("src/" + best_part_script_name + ".v").c_str() );
+    opt.back()->write_ports("src/" + best_part_script_name + ".ports");
+  }
+  remove_files("outputs");
   
-//   std::string module_name = "part_additional";
-//   partitions.gen_additional_partition(module_name, "src/" + module_name + ".v");
+  std::string module_name = "part_additional";
+  partitions.gen_additional_partition(module_name, "src/" + module_name + ".v");
   delete target;
-//   exit(0);
+  exit(0);
 
   return setup_output1(partitions, optimized);
 }

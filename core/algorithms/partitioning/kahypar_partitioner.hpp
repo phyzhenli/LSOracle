@@ -112,11 +112,16 @@ public:
         const kahypar_hyperedge_id_t num_hyperedges = kahyp_num_hyperedges;
         const kahypar_hypernode_id_t num_vertices = kahyp_num_vertices;
 
-        //set all edges to have the same weight
+        //set edges with different weights
         if (hyperedge_weights == nullptr) {
-            hyperedge_weights = new kahypar_hyperedge_weight_t[kahyp_num_vertices];
-            for (int i = 0; i < kahyp_num_vertices; i++) {
-                hyperedge_weights[i] = 2;
+            hyperedge_weights = new kahypar_hyperedge_weight_t[kahyp_num_hyperedges];
+            std::vector<std::vector<uint32_t>> hyperedges = t.get_hyperedges();
+            mockturtle::depth_view depth_ntk{ntk};
+            for ( int i = 0; i < hyperedges.size(); i++ ) {
+                if ( depth_ntk.is_on_critical_path(hyperedges[i][0]) )
+                    hyperedge_weights[i] = 1000;
+                else
+                    hyperedge_weights[i] = hyperedges[i].size();
             }
         }
 
