@@ -858,7 +858,7 @@ void abc_module(RTLIL::Design *design, RTLIL::Module *current_module, std::strin
 		std::string liberty_file, std::string constr_file, bool cleanup, vector<int> lut_costs, bool dff_mode, std::string clk_str,
 		bool keepff, std::string delay_target, std::string sop_inputs, std::string sop_products, std::string lutin_shared, bool fast_mode,
 		const std::vector<RTLIL::Cell*> &cells, bool show_tempdir, bool sop_mode, bool abc_dress, std::string num_parts, bool partitioned,
-		bool exclu_part, bool mig, bool deep, bool merge, bool test, bool aig, bool xag, bool xmg, bool lut, std::string gen_top_py)
+		bool exclu_part, bool mig, bool deep, bool merge, bool test, bool aig, bool xag, bool xmg, bool lut, std::string gen_top_py, std::string rl_yqian_P_opt_py, std::string outputs_dir_monitor)
 {
 	module = current_module;
 	map_autoidx = autoidx++;
@@ -1177,6 +1177,8 @@ void abc_module(RTLIL::Design *design, RTLIL::Module *current_module, std::strin
 		std::system( ("sed -n 2p " + blif_input_file + " | tr -d '\n' | sed 's/.inputs //' > src/top.inputs").c_str() );
 		std::system( ("sed -n 3p " + blif_input_file + " | tr -d '\n' | sed 's/.outputs //' > src/top.outputs").c_str() );
 		std::system(("python3 " + gen_top_py + " -dir src").c_str());
+
+		std::system(("python3 " + rl_yqian_P_opt_py + " -abc_exe " + abcexe_file + " -outputs_dir_monitor " + outputs_dir_monitor).c_str());
 
 		RTLIL::Design *mapped_design = new RTLIL::Design;
 
@@ -1590,7 +1592,7 @@ struct ORACLEPass : public Pass {
 #endif
 
 		std::string lsoexe_file = "lsoracle";
-		std::string gen_top_py;
+		std::string gen_top_py, rl_yqian_P_opt_py, outputs_dir_monitor;
 		size_t argidx;
 		char pwd [PATH_MAX];
 		if (!getcwd(pwd, sizeof(pwd))) {
@@ -1612,6 +1614,14 @@ struct ORACLEPass : public Pass {
 				}
 				if (arg == "-gen_top_py" && argidx+1 < args.size()) {
 					gen_top_py = args[++argidx];
+					continue;
+				}
+				if (arg == "-rl_yqian_P_opt_py" && argidx+1 < args.size()) {
+					rl_yqian_P_opt_py = args[++argidx];
+					continue;
+				}
+				if (arg == "-outputs_dir_monitor" && argidx+1 < args.size()) {
+					outputs_dir_monitor = args[++argidx];
 					continue;
 				}
 				if (arg == "-script" && argidx+1 < args.size()) {
@@ -1719,7 +1729,7 @@ struct ORACLEPass : public Pass {
 				if (!dff_mode || !clk_str.empty()) {
 					abc_module(design, mod, script_file, abcexe_file, lsoexe_file, liberty_file, constr_file, cleanup, lut_costs, dff_mode, clk_str, keepff,
 							delay_target, sop_inputs, sop_products, lutin_shared, fast_mode, mod->selected_cells(), show_tempdir, sop_mode, abc_dress,
-						   num_parts, partitioned, exclu_part, mig, deep, merge, test, aig, xag, xmg, lut, gen_top_py);
+						   num_parts, partitioned, exclu_part, mig, deep, merge, test, aig, xag, xmg, lut, gen_top_py, rl_yqian_P_opt_py, outputs_dir_monitor);
 					continue;
 				}
 			}

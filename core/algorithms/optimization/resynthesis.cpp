@@ -1719,7 +1719,7 @@ vector<optimizer<network> *> optimize1(optimization_strategy_comparator<network>
     // std::map<std::string, double> inputs_delays;
     const mockturtle::window_view<mockturtle::names_view<network>> part = fix_names2(partman, index);
     std::vector<optimizer<network>*>optimizers {
-        // new noop<network>(index, part, strategy, abc_exec),
+        new noop<network>(index, part, strategy, abc_exec),
         // new migscript_optimizer<network>(index, part, strategy, abc_exec),
         // // new migscript2_optimizer<network>(index, part, strategy, abc_exec),
         // new migscript3_optimizer<network>(index, part, strategy, abc_exec),
@@ -1730,7 +1730,7 @@ vector<optimizer<network> *> optimize1(optimization_strategy_comparator<network>
         // new aigscript5_optimizer<network>(index, part, strategy, abc_exec),
         // new xmg_optimizer<network>(index, part, strategy, abc_exec),
         // new xag_optimizer<network>(index, part, strategy, abc_exec),
-        new abc_resyn2_optimizer<network>(index, part, strategy, abc_exec),
+        // new abc_resyn2_optimizer<network>(index, part, strategy, abc_exec),
         // new abc_resyn2rs_optimizer<network>(index, part, strategy, abc_exec),
         // new abc_fraig_resyn2_optimizer<network>(index, part, strategy, abc_exec),
         // new abc_fraig_dc2_resyn2_optimizer<network>(index, part, strategy, abc_exec),
