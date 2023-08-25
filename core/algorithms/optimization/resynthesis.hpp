@@ -49,7 +49,7 @@ template <typename network>
 mockturtle::names_view<mockturtle::xmg_network> optimize_basic(
     oracle::partition_manager_junior<network> &partitions,
     const std::string &abc_exec,
-    const optimization_strategy strategy,bool reoptimize_bool);
+    const optimization_strategy strategy,bool reoptimize_bool, const std::string &noop_dir = "");
 
 
 template <typename network>
@@ -91,9 +91,9 @@ public:
      */
     virtual void write_original( std::string module_name, std::string filename ) = 0;
     /**
-     * Write optimal partition network in Verilog format.
+     * Write optimized partition network in Verilog format.
      */
-    virtual void write_optimal( std::string module_name, std::string filename ) = 0;
+    virtual void write_optimized( std::string module_name, std::string filename ) = 0;
     /**
      * Write network ports.
      */

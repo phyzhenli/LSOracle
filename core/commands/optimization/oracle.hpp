@@ -83,7 +83,8 @@ public:
                 opts.add_option("--strategy",strategych, "Strategy for optimization");
                 opts.add_option("--out,-o", out_file,
                         "output file to write resulting network to [.v, .blif]");
-                
+                opts.add_option("--noop_dir,-d", noop_dir,
+                        "Write all noop partitions to the directory and exit");
             }
 
     protected:
@@ -174,7 +175,7 @@ public:
 	    } else {
 		strategy = oracle::optimization_strategy::balanced;
 	    }
-        ntk_result = oracle::optimize_basic<network>(partitions_jr, abc_exec, strategy,false);
+        ntk_result = oracle::optimize_basic<network>(partitions_jr, abc_exec, strategy, false, noop_dir);
 
         auto stop = std::chrono::high_resolution_clock::now();
         mockturtle::depth_view new_depth(ntk_result);
@@ -231,7 +232,7 @@ public:
         std::string out_file{};
         std:: string strategych={""};
         string abc_exec{"abc"};
-        
+        std::string noop_dir = "";
     };
 
 ALICE_ADD_COMMAND(oracle, "Optimization");

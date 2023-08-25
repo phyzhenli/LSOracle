@@ -141,6 +141,30 @@ public:
         os_ports.close();
     }
 
+    void write_inputs( std::string filename ) {
+        mockturtle::node_map<std::string, network> node_names( ntk );
+        std::vector<std::string> inputs;
+        ntk.foreach_pi( [&]( auto const& i, uint32_t index ){
+          inputs.push_back( ntk.get_name( ntk.make_signal( i ) ) );
+          return true;
+        } );
+        std::ofstream os_inputs( filename.c_str(), std::ofstream::out );
+        os_inputs << fmt::format( "{}", fmt::join( inputs, " " ) );
+        os_inputs.close();
+    }
+
+    void write_outputs( std::string filename ) {
+        mockturtle::node_map<std::string, network> node_names( ntk );
+        std::vector<std::string> outputs;
+        ntk.foreach_po( [&]( auto const& signal, auto index ) {
+            outputs.push_back( ntk.get_output_name( index ) );
+            return true;
+        } );
+        std::ofstream os_outputs( filename.c_str(), std::ofstream::out );
+        os_outputs << fmt::format( "{}", fmt::join( outputs, " " ) );
+        os_outputs.close();
+    }
+
     template<class optimized_network>
     void integrate(int id, mockturtle::names_view<optimized_network> &opt)
     {

@@ -1174,8 +1174,7 @@ void abc_module(RTLIL::Design *design, RTLIL::Module *current_module, std::strin
 
 
 		////////////////////////////  direcly merge  ////////////////////////////
-		std::system( ("sed -n 2p " + blif_input_file + " | tr -d '\n' | sed 's/.inputs //' > src/top.inputs").c_str() );
-		std::system( ("sed -n 3p " + blif_input_file + " | tr -d '\n' | sed 's/.outputs //' > src/top.outputs").c_str() );
+		
 		std::system(("python3 " + gen_top_py + " -dir src").c_str());
 
 		std::system(("python3 " + rl_yqian_P_opt_py + " -abc_exe " + abcexe_file + " -outputs_dir_monitor " + outputs_dir_monitor).c_str());

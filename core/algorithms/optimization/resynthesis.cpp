@@ -360,7 +360,7 @@ public:
         mockturtle::write_verilog(this->original, filename, ps);
     }
 
-    void write_optimal( std::string module_name, std::string filename ) {
+    void write_optimized( std::string module_name, std::string filename ) {
         mockturtle::write_verilog_params ps;
         ps.module_name = module_name;
         mockturtle::write_verilog(this->copy, filename, ps);
@@ -458,7 +458,7 @@ public:
         mockturtle::write_verilog(this->original, filename, ps);
     }
 
-    void write_optimal( std::string module_name, std::string filename ) {
+    void write_optimized( std::string module_name, std::string filename ) {
         mockturtle::write_verilog_params ps;
         ps.module_name = module_name;
         mockturtle::write_verilog(this->optimal, filename, ps);
@@ -554,7 +554,7 @@ public:
         mockturtle::write_verilog(this->original, filename, ps);
     }
 
-    void write_optimal( std::string module_name, std::string filename ) {
+    void write_optimized( std::string module_name, std::string filename ) {
         mockturtle::write_verilog_params ps;
         ps.module_name = module_name;
         mockturtle::write_verilog(this->optimal, filename, ps);
@@ -957,7 +957,7 @@ public:
         mockturtle::write_verilog(this->original, filename, ps);
     }
 
-    void write_optimal( std::string module_name, std::string filename ) {
+    void write_optimized( std::string module_name, std::string filename ) {
         mockturtle::write_verilog_params ps;
         ps.module_name = module_name;
         mockturtle::write_verilog(this->optimal, filename, ps);
@@ -1079,7 +1079,7 @@ public:
         mockturtle::write_verilog(this->original, filename, ps);
     }
 
-    void write_optimal( std::string module_name, std::string filename ) {
+    void write_optimized( std::string module_name, std::string filename ) {
         mockturtle::write_verilog_params ps;
         ps.module_name = module_name;
         mockturtle::write_verilog(this->optimal, filename, ps);
@@ -1704,7 +1704,7 @@ vector<optimizer<network> *> optimize1(optimization_strategy_comparator<network>
                              optimization_strategy strategy,
                              partition_manager_junior<network> &partman,
                              int index,
-                             const std::string &abc_exec, bool reoptimize_bool)
+                             const std::string &abc_exec, bool reoptimize_bool, const std::string &noop_dir)
 
 {
     std::cout << "******************************** optimizing partition " << index << " ********************************" << std::endl;
@@ -1720,7 +1720,7 @@ vector<optimizer<network> *> optimize1(optimization_strategy_comparator<network>
     const mockturtle::window_view<mockturtle::names_view<network>> part = fix_names2(partman, index);
     std::vector<optimizer<network>*>optimizers {
         new noop<network>(index, part, strategy, abc_exec),
-        // new migscript_optimizer<network>(index, part, strategy, abc_exec),
+        new migscript_optimizer<network>(index, part, strategy, abc_exec),
         // // new migscript2_optimizer<network>(index, part, strategy, abc_exec),
         // new migscript3_optimizer<network>(index, part, strategy, abc_exec),
         // new aigscript_optimizer<network>(index, part, strategy, abc_exec),
@@ -1796,15 +1796,17 @@ vector<optimizer<network> *> optimize1(optimization_strategy_comparator<network>
 
     else{
         if (part.num_gates() <= 1) {
-            std::cout << "nodes <= 1, no opt" << std::endl;
+            std::cout << "nodes " + std::to_string(part.num_gates()) + ", no opt" << std::endl;
             optimizers[0]->convert();
             optimizers[0]->optimize();
+            if (noop_dir != "") {
+                std::string module_name = "part_" + std::to_string(index) + "_noop"; // + (*opt)->optimizer_name();
+                optimizers[0]->write_optimized ( module_name, noop_dir + "/" + module_name + ".v" );
+                optimizers[0]->write_ports ( noop_dir + "/" + module_name + ".ports" );
+            }
             node_depth result = optimizers[0]->independent_metric();
             std::cout << "result depth " << result.depth
                     << " size " << result.nodes << std::endl;
-            std::string part_script_name = "part_" + std::to_string(index) + "_" + optimizers[0]->optimizer_name();
-            // optimizers[0]->write_original( part_script_name + "_original" );
-            optimizers[0]->write_optimal ( part_script_name, "outputs/" + part_script_name + "_mapped.v" );
             best = optimizers[0];
             optimizersave.push_back(best);
         }
@@ -1817,15 +1819,18 @@ vector<optimizer<network> *> optimize1(optimization_strategy_comparator<network>
                 std::cout << "result depth " << result.depth
                         << " size " << result.nodes << std::endl;
 
-                std::string part_script_name = "part_" + std::to_string(index) + "_" + (*opt)->optimizer_name();
-                // (*opt)->write_original( part_script_name + "_original" );
-                (*opt)->write_optimal ( part_script_name, "outputs/" + part_script_name + "_mapped.v" );
+                // (*opt)->write_original( module_name, noop_dir + "/" + module_name + "_original.v" );
+                if ( (noop_dir != "") && ((*opt)->optimizer_name() == "noop") ) {
+                    std::string module_name = "part_" + std::to_string(index) + "_noop"; // (*opt)->optimizer_name();
+                    (*opt)->write_optimized ( module_name, noop_dir + "/" + module_name + ".v" );
+                    (*opt)->write_ports ( noop_dir + "/" + module_name + ".ports" );
+                }
                 // std::map<std::string, std::string> bench_info;
-                // bench_info["top"] = part_script_name;
+                // bench_info["top"] = module_name;
                 // bench_info["type"] = "combinational";
                 // create_script("scripts/top.tcl", bench_info, "compile -map_effort high", 0, inputs_delays);
                 // std::system("dc_shell -f scripts/top.tcl -output_log_file log > /dev/null");
-                // power_delay_slack_area pdsa = get_pdsa(part_script_name, "reports");
+                // power_delay_slack_area pdsa = get_pdsa(module_name, "reports");
                 // remove_files("reports");
                 // remove_files("src");
 
@@ -2463,7 +2468,10 @@ template <typename network>
 xmg_names optimize_basic (
     oracle::partition_manager_junior<network> &partitions,
     const string &abc_exec,
-    optimization_strategy strategy,bool reoptimize_bool)
+    optimization_strategy strategy,
+    bool reoptimize_bool,
+    const string &noop_dir
+)
 {
   int num_parts = partitions.count();
   std::vector<optimizer<network>*> optimizersave {};
@@ -2481,28 +2489,36 @@ xmg_names optimize_basic (
       target = new n_strategy<network>();
       break;
   }
-  
+
   for (int i = 0; i < num_parts; i++) {
     const mockturtle::window_view<mockturtle::names_view<network>> part = partitions.partition(i);
-    if ( part.num_gates() == 0 && part.num_cos() == 0 )
-        continue;
+    if ( part.num_gates() == 0 && part.num_cos() == 0 ) {
+        std::cout << "******************************** jumping partition " << i << " ********************************" << std::endl;
+        std::cout << "nodes 0, cos 0" << std::endl;
+        std::vector<optimizer<network>*> vec_noop { new noop<network>(i, part, strategy, abc_exec) };
+        vec_noop[0]->convert();
+        vec_noop[0]->optimize();
+        optimized.push_back(vec_noop);
+        std::cout << std::endl;
+    }
     else {
-        optimizersave = optimize1(*target, strategy, partitions, i, abc_exec, reoptimize_bool);
+        optimizersave = optimize1(*target, strategy, partitions, i, abc_exec, reoptimize_bool, noop_dir);
         optimized.push_back(optimizersave);
     }
   }
+    if (noop_dir != "") {
+        std::cout << "******************************** writing part additional ********************************" << std::endl;
+        partitions.gen_additional_partition("part_additional", noop_dir + "/part_additional.v");
+        std::cout << std::endl;
+        std::cout << "******************************** writing top inputs outputs ********************************" << std::endl;
+        partitions.write_inputs(noop_dir + "/top.inputs");
+        partitions.write_outputs(noop_dir + "/top.outputs");
+        std::cout << std::endl;
+        std::cout << "Done and Exit." << std::endl;
+        exit(0);
+    }
 
-  for( auto &opt : optimized ) {
-    std::string best_part_script_name = "part_" + std::to_string(opt.back()->get_partition_id()) + "_" + opt.back()->optimizer_name();
-    std::rename( ("outputs/" + best_part_script_name + "_mapped.v").c_str(), ("src/" + best_part_script_name + ".v").c_str() );
-    opt.back()->write_ports("src/" + best_part_script_name + ".ports");
-  }
-  remove_files("outputs");
-  
-  std::string module_name = "part_additional";
-  partitions.gen_additional_partition(module_name, "src/" + module_name + ".v");
   delete target;
-  exit(0);
 
   return setup_output1(partitions, optimized);
 }
@@ -2522,7 +2538,7 @@ optimize_basic<mockturtle::aig_network>
 (
     oracle::partition_manager_junior<mockturtle::aig_network> &,
     const std::string &,
-    const optimization_strategy,bool reoptimize_bool);
+    const optimization_strategy,bool reoptimize_bool, const std::string &);
 
 
 template xmg_names
