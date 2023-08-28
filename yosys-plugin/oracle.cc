@@ -64,7 +64,6 @@
 #include <cerrno>
 #include <sstream>
 #include <climits>
-#include <filesystem>
 
 #ifndef _WIN32
 #  include <unistd.h>
@@ -752,9 +751,9 @@ std::string prepend_script_file(std::string script_file, std::string input_file,
 	return lso_script.str();
 }
 
-std::string generate_lso_script(std::string exe_file, std::string abcexe_file, std::string input_aig_file, std::string output_blif_file,
+std::string generate_lso_script(std::string exe_file, std::string abcexe_file, std::string input_aig_file, std::string output_blif_file, std::string output_verilog_file,
 			std::string num_parts, bool partitioned, bool exclu_part, bool mig,
-				bool deep, bool merge, bool test, bool aig, bool xag, bool xmg, bool lut)
+				bool deep, bool merge, bool test, bool aig, bool xag, bool xmg, bool lut, std::string noop_dir)
 {
 
 	std::string lso_script;
@@ -789,7 +788,7 @@ std::string generate_lso_script(std::string exe_file, std::string abcexe_file, s
 				if(merge)
 					lso_script += LSO_COMMAND_PART_HIGH_EFFORT_M;
 				else
-					lso_script += "ps -a; oracle --abc_exec " + abcexe_file + "; ps --xmg; critical_path --xmg";
+					lso_script += "ps -a; oracle --abc_exec " + abcexe_file + (noop_dir == "" ? "" : (" --noop_dir " + noop_dir)) + "; ps --xmg; critical_path --xmg";
 			}
 
 		}
@@ -806,7 +805,7 @@ std::string generate_lso_script(std::string exe_file, std::string abcexe_file, s
 			else if (xag)
 				lso_script += !lut ? stringf("; write_blif -x %s", output_blif_file.c_str()) : stringf("; lut_map -x -o %s", output_blif_file.c_str());
 			else if (xmg)
-				lso_script += !lut ? stringf("; write_gblif -g %s", output_blif_file.c_str()) : stringf("; lut_map -g -o %s", output_blif_file.c_str());
+				lso_script += !lut ? stringf("; write_verilog -g %s", output_verilog_file.c_str()) : stringf("; lut_map -g -o %s", output_blif_file.c_str());
 			else
 				lso_script += !lut ? stringf("; write_blif -m %s", output_blif_file.c_str()) : stringf("; lut_map -m -o %s", output_blif_file.c_str());
 		}
@@ -858,7 +857,7 @@ void abc_module(RTLIL::Design *design, RTLIL::Module *current_module, std::strin
 		std::string liberty_file, std::string constr_file, bool cleanup, vector<int> lut_costs, bool dff_mode, std::string clk_str,
 		bool keepff, std::string delay_target, std::string sop_inputs, std::string sop_products, std::string lutin_shared, bool fast_mode,
 		const std::vector<RTLIL::Cell*> &cells, bool show_tempdir, bool sop_mode, bool abc_dress, std::string num_parts, bool partitioned,
-		bool exclu_part, bool mig, bool deep, bool merge, bool test, bool aig, bool xag, bool xmg, bool lut, std::string gen_top_py, std::string rl_yqian_P_opt_py, std::string outputs_dir_monitor)
+		bool exclu_part, bool mig, bool deep, bool merge, bool test, bool aig, bool xag, bool xmg, bool lut, std::string noop_dir, std::string netlist)
 {
 	module = current_module;
 	map_autoidx = autoidx++;
@@ -911,6 +910,7 @@ void abc_module(RTLIL::Design *design, RTLIL::Module *current_module, std::strin
 	std::string aiger_temp_file = tempdir_name + "/abc.aig";
 	std::string tmp_script_name = tempdir_name + "/abc.script";
 	std::string blif_output_file = tempdir_name + "/output.blif";
+	std::string verilog_output_file = tempdir_name + "/output.v";
 
 	log_header(design, "Extracting gate netlist of module `%s' to `%s/input.blif'..\n",
 			module->name.c_str(), replace_tempdir(tempdir_name, tempdir_name, show_tempdir).c_str());
@@ -1077,6 +1077,7 @@ void abc_module(RTLIL::Design *design, RTLIL::Module *current_module, std::strin
 	log_push();
 	if (count_output > 0)
 	{
+		if (netlist == "") {
 		log_header(design, "Executing ABC.\n");
 
 		std::string abc_command = stringf("%s -s -f %s 2>&1", abcexe_file.c_str(), tmp_script_name.c_str());
@@ -1111,8 +1112,8 @@ void abc_module(RTLIL::Design *design, RTLIL::Module *current_module, std::strin
 		std::string lso_script;
 		if (script_file == "") {
 		// TODO pass temp filenames
-			lso_script = generate_lso_script(lsoexe_file, abcexe_file, aiger_temp_file, blif_output_file, num_parts,
-							 partitioned, exclu_part, mig, deep, merge, test, aig, xag, xmg, lut);
+			lso_script = generate_lso_script(lsoexe_file, abcexe_file, aiger_temp_file, blif_output_file, verilog_output_file, num_parts,
+							 partitioned, exclu_part, mig, deep, merge, test, aig, xag, xmg, lut, noop_dir);
 
 		} else {
 			lso_script = prepend_script_file(script_file, aiger_temp_file, blif_output_file, aig, mig, xag, xmg);
@@ -1121,85 +1122,36 @@ void abc_module(RTLIL::Design *design, RTLIL::Module *current_module, std::strin
 
 		lso_module(lsoexe_file, tempdir_name, show_tempdir, script);
 
-		printf("%s\n", blif_output_file.c_str());
-		// std::ifstream ifs_lso;
-		// ifs_lso.open(blif_output_file);
-		// if (ifs_lso.fail())
-		// 	log_error("Can't open LSOracle output file `%s'.\n", blif_output_file.c_str());
+		if (noop_dir != "")
+			exit(0);
 
-		// printf("Finished LSO\n");
-
-		// std::string cec_script = stringf("cec %s %s", blif_input_file.c_str(), blif_output_file.c_str());
-		// cec_script = add_echos_to_abc_cmd(cec_script);
-
-		// for (size_t i = 0; i+1 < cec_script.size(); i++)
-		// 	if (cec_script[i] == ';' && cec_script[i+1] == ' ')
-		// 		cec_script[i+1] = '\n';
-
-		// FILE *cec = fopen(stringf("%s/cec.script", tempdir_name.c_str()).c_str(), "wt");
-		// fprintf(cec, "%s\n", cec_script.c_str());
-		// fclose(cec);
-
-		// std::string cec_buffer = stringf("%s -s -f %s/cec.script 2>&1", abcexe_file.c_str(), tempdir_name.c_str());
-
-		// printf("Verifying LSOracle result is equivalent to original file\n");
-
-		// #ifndef YOSYS_LINK_ABC
-		// 		ret = run_command(cec_buffer, std::bind(&abc_output_filter::next_line, filt, std::placeholders::_1));
-		// #else
-		// 		// These needs to be mutable, supposedly due to getopt
-		// 		char *abc_argv[5];
-		// 		string tmp_script_name = stringf("%s/cec.script", tempdir_name.c_str());
-		// 		abc_argv[0] = strdup(abcexe_file.c_str());
-		// 		abc_argv[1] = strdup("-s");
-		// 		abc_argv[2] = strdup("-f");
-		// 		abc_argv[3] = strdup(tmp_script_name.c_str());
-		// 		abc_argv[4] = 0;
-		// 		ret = Abc_RealMain(4, abc_argv);
-		// 		free(abc_argv[0]);
-		// 		free(abc_argv[1]);
-		// 		free(abc_argv[2]);
-		// 		free(abc_argv[3]);
-		// #endif
-		// 		if (ret != 0)
-		// 			log_error("ABC: execution of command \"%s\" failed: return code %d.\n", cec_buffer.c_str(), ret);
-
-		// printf("Verification complete\n");
-
-		bool builtin_lib = liberty_file.empty();
-		// RTLIL::Design *mapped_design = new RTLIL::Design;
-		// parse_blif(mapped_design, ifs_lso, builtin_lib ? "\\DFF" : "\\_dff_", false, sop_mode);
-
-		// ifs_lso.close();
-
-
-		////////////////////////////  direcly merge  ////////////////////////////
-		
-		std::system(("python3 " + gen_top_py + " -dir src").c_str());
-
-		std::system(("python3 " + rl_yqian_P_opt_py + " -abc_exe " + abcexe_file + " -outputs_dir_monitor " + outputs_dir_monitor).c_str());
-
-		RTLIL::Design *mapped_design = new RTLIL::Design;
-
-		for (const auto& entry : std::filesystem::directory_iterator("src"))
-		{
-			if ( entry.path().extension() == ".v" ) {  
-				Pass::call(mapped_design, "read_verilog " + entry.path().string());
-			}
-		}
-		Pass::call(mapped_design, "hierarchy -top top; flatten; techmap; opt -purge");
+		printf("%s\n", verilog_output_file.c_str());
+		std::ifstream ifs_lso;
+		ifs_lso.open(verilog_output_file);
+		if (ifs_lso.fail())
+			log_error("Can't open LSOracle output file `%s'.\n", verilog_output_file.c_str());
+		ifs_lso.close();
 		printf("Finished LSO\n");
-		std::system("rm src/*");
-		
-		std::string cec_script = stringf("cec %s %s", blif_input_file.c_str(), "src/top.v");
+		}
+
+		std::string cec_script = stringf("cec %s %s", netlist == "" ? aiger_temp_file.c_str() : blif_input_file.c_str(), netlist == "" ? verilog_output_file.c_str() : netlist.c_str());
+		cec_script = add_echos_to_abc_cmd(cec_script);
+
+		for (size_t i = 0; i+1 < cec_script.size(); i++)
+			if (cec_script[i] == ';' && cec_script[i+1] == ' ')
+				cec_script[i+1] = '\n';
+
 		FILE *cec = fopen(stringf("%s/cec.script", tempdir_name.c_str()).c_str(), "wt");
 		fprintf(cec, "%s\n", cec_script.c_str());
 		fclose(cec);
+
 		std::string cec_buffer = stringf("%s -s -f %s/cec.script 2>&1", abcexe_file.c_str(), tempdir_name.c_str());
-		printf("Verifying LSOracle result is equivalent to original file...\n");
-		Pass::call(mapped_design, "write_verilog -noattr src/top.v");
+
+		printf("Verifying LSOracle result is equivalent to original file\n");
+
 		#ifndef YOSYS_LINK_ABC
-				ret = run_command(cec_buffer, std::bind(&abc_output_filter::next_line, filt, std::placeholders::_1));
+				abc_output_filter filt(tempdir_name, show_tempdir);
+				int ret = run_command(cec_buffer, std::bind(&abc_output_filter::next_line, filt, std::placeholders::_1));
 		#else
 				// These needs to be mutable, supposedly due to getopt
 				char *abc_argv[5];
@@ -1215,9 +1167,16 @@ void abc_module(RTLIL::Design *design, RTLIL::Module *current_module, std::strin
 				free(abc_argv[2]);
 				free(abc_argv[3]);
 		#endif
-		std::system("rm src/top.v");
-		if (ret != 0)
-			log_error("ABC: execution of command \"%s\" failed: return code %d.\n", cec_buffer.c_str(), ret);
+				if (ret != 0)
+					log_error("ABC: execution of command \"%s\" failed: return code %d.\n", cec_buffer.c_str(), ret);
+
+		printf("Verification complete\n");
+
+		bool builtin_lib = liberty_file.empty();
+		RTLIL::Design *mapped_design = new RTLIL::Design;
+		// parse_blif(mapped_design, ifs_lso, builtin_lib ? "\\DFF" : "\\_dff_", false, sop_mode);
+		Pass::call(mapped_design, "read_verilog " + ( netlist == "" ? verilog_output_file : netlist ));
+		Pass::call(mapped_design, "techmap; opt -purge");
 
 		log_header(design, "Re-integrating LSOracle results.\n");
 		RTLIL::Module *mapped_mod = mapped_design->modules_["\\top"];
@@ -1339,7 +1298,7 @@ void abc_module(RTLIL::Design *design, RTLIL::Module *current_module, std::strin
 					design->select(module, cell);
 					continue;
 				}
-				if (c->type == "\\AOI3" || c->type == "\\OAI3" || c->type == "\\MAJ3" || c->type == "\\XOR3") {
+				if (c->type == "\\AOI3" || c->type == "\\OAI3") {
 					RTLIL::Cell *cell = module->addCell(remap_name(c->name), "$_" + c->type.substr(1) + "_");
 					if (markgroups) cell->attributes["\\abcgroup"] = map_autoidx;
 					cell->setPort("\\A", RTLIL::SigSpec(module->wires_[remap_name(c->getPort("\\A").as_wire()->name)]));
@@ -1548,6 +1507,13 @@ struct ORACLEPass : public Pass {
 		log("    -xmg_out <file>\n");
 		log("        write output from stored XMG network.\n");
 		log("\n");
+		log("    -noop_dir <directory>\n");
+		log("        write all noop partitions [.v] to the directory and exit.\n");
+		log("\n");
+		log("    -netlist <file>\n");
+		log("        use a given netlist file [.v] to back to yosys after extracting gates and wires.\n");
+		log("        the netlist must be flattened and the module name is 'top'.\n");
+		log("\n");
 
 	}
 	void execute(std::vector<std::string> args, RTLIL::Design *design) override
@@ -1583,6 +1549,9 @@ struct ORACLEPass : public Pass {
 		std::string num_parts;
 		bool partitioned = false, exclu_part = false, mig = false, aig = false, xag = false, xmg = false, lut = false, deep = false, merge = false, test = false;
 
+		std::string noop_dir = "";
+		std::string netlist = "";
+
 #ifdef _WIN32
 #ifndef ABCEXTERNAL
 		if (!check_file_exists(abcexe_file + ".exe") && check_file_exists(proc_self_dirname() + "..\\yosys-abc.exe"))
@@ -1591,7 +1560,6 @@ struct ORACLEPass : public Pass {
 #endif
 
 		std::string lsoexe_file = "lsoracle";
-		std::string gen_top_py, rl_yqian_P_opt_py, outputs_dir_monitor;
 		size_t argidx;
 		char pwd [PATH_MAX];
 		if (!getcwd(pwd, sizeof(pwd))) {
@@ -1609,18 +1577,6 @@ struct ORACLEPass : public Pass {
 				}
 				if (arg == "-abc_exe" && argidx+1 < args.size()) {
 					abcexe_file = args[++argidx];
-					continue;
-				}
-				if (arg == "-gen_top_py" && argidx+1 < args.size()) {
-					gen_top_py = args[++argidx];
-					continue;
-				}
-				if (arg == "-rl_yqian_P_opt_py" && argidx+1 < args.size()) {
-					rl_yqian_P_opt_py = args[++argidx];
-					continue;
-				}
-				if (arg == "-outputs_dir_monitor" && argidx+1 < args.size()) {
-					outputs_dir_monitor = args[++argidx];
 					continue;
 				}
 				if (arg == "-script" && argidx+1 < args.size()) {
@@ -1694,6 +1650,14 @@ struct ORACLEPass : public Pass {
 					cleanup = false;
 					continue;
 				}
+				if (arg == "-noop_dir" && argidx+1 < args.size()) {
+					noop_dir = args[++argidx];
+					continue;
+				}
+				if (arg == "-netlist" && argidx+1 < args.size()) {
+					netlist = args[++argidx];
+					continue;
+				}
 			}
 			extra_args(args, argidx, design);
 
@@ -1728,7 +1692,7 @@ struct ORACLEPass : public Pass {
 				if (!dff_mode || !clk_str.empty()) {
 					abc_module(design, mod, script_file, abcexe_file, lsoexe_file, liberty_file, constr_file, cleanup, lut_costs, dff_mode, clk_str, keepff,
 							delay_target, sop_inputs, sop_products, lutin_shared, fast_mode, mod->selected_cells(), show_tempdir, sop_mode, abc_dress,
-						   num_parts, partitioned, exclu_part, mig, deep, merge, test, aig, xag, xmg, lut, gen_top_py, rl_yqian_P_opt_py, outputs_dir_monitor);
+						   num_parts, partitioned, exclu_part, mig, deep, merge, test, aig, xag, xmg, lut, noop_dir, netlist);
 					continue;
 				}
 			}
