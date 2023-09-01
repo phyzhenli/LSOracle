@@ -1720,7 +1720,7 @@ vector<optimizer<network> *> optimize1(optimization_strategy_comparator<network>
     const mockturtle::window_view<mockturtle::names_view<network>> part = fix_names2(partman, index);
     std::vector<optimizer<network>*>optimizers {
         new noop<network>(index, part, strategy, abc_exec),
-        new migscript_optimizer<network>(index, part, strategy, abc_exec),
+        // new migscript_optimizer<network>(index, part, strategy, abc_exec),
         // // new migscript2_optimizer<network>(index, part, strategy, abc_exec),
         // new migscript3_optimizer<network>(index, part, strategy, abc_exec),
         // new aigscript_optimizer<network>(index, part, strategy, abc_exec),
