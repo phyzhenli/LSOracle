@@ -56,11 +56,11 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSIO
 #  target_link_libraries(unit_tests stdc++fs)
 endif()
 
-if (${ENABLE_ABC})
+# if (${ENABLE_ABC})
   add_definitions(-DENABLE_ABC)
   target_include_directories(lsoracle PRIVATE ${ABC_INCLUDE_DIR})
   # target_link_libraries(lsoracle libabc)
-endif()
+# endif()
 
 if (${ENABLE_OPENSTA})
   add_definitions(-DENABLE_OPENSTA)
