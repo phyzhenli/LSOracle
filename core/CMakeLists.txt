@@ -34,7 +34,8 @@ target_include_directories(lsoracle PRIVATE .)
 target_include_directories(lsoracle PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
-target_link_libraries(lsoracle alice mockturtle kahypar nlohmann_json::nlohmann_json)
+target_link_libraries(lsoracle alice mockturtle kahypar dagp metis nlohmann_json::nlohmann_json)
+include_directories(../lib/dagP/src/common ../lib/dagP/src/recBisection)
 
 if (${ENABLE_GALOIS})
   add_definitions(-DENABLE_GALOIS)

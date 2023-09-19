@@ -1,0 +1,3 @@
+[submodule "lib/metis"]
+	path = lib/metis
+	url = https://github.com/phyzhenli/metis.git

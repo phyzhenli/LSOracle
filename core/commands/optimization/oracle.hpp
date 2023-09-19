@@ -85,6 +85,8 @@ public:
                         "output file to write resulting network to [.v, .blif]");
                 opts.add_option("--noop_dir,-d", noop_dir,
                         "Write all noop partitions to the directory and exit");
+                opts.add_option("--p_strategy", p_strategy,
+                        "Partition strategy: kahypar, dagP. kahypar is Default.");
             }
 
     protected:
@@ -130,7 +132,7 @@ public:
             env->out() << "Using KaHyPar configuration " << config_direc << std::endl;
 
             oracle::kahypar_partitioner<network> partitioner(ntk,
-                                                                  num_partitions,
+                                                                  num_partitions, p_strategy,
                                                                   config_direc,
                                                                   node_weights,
                                                                   edge_weights,
@@ -233,6 +235,7 @@ public:
         std:: string strategych={""};
         string abc_exec{"abc"};
         std::string noop_dir = "";
+        std::string p_strategy = "kahypar";
     };
 
 ALICE_ADD_COMMAND(oracle, "Optimization");

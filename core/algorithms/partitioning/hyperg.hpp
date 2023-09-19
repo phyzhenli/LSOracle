@@ -82,18 +82,18 @@ public:
                 }
             }
 
-            else if (is_po(ntk, node) && !ntk.is_ro(node)) {
-                ntk.foreach_fanin(node, [&](auto const & conn, auto i) {
-                    connections.push_back(ntk._storage->nodes[node].children[i].index);
-                });
-            }
+            // else if (is_po(ntk, node) && !ntk.is_ro(node)) {
+            //     ntk.foreach_fanin(node, [&](auto const & conn, auto i) {
+            //         connections.push_back(ntk._storage->nodes[node].children[i].index);
+            //     });
+            // }
 
-            if (connections.size() > 0) {
+            // if (connections.size() > 0) {
                 std::vector<uint32_t> connection_to_add = connections;
                 //Add root node to the hyper edge
                 connection_to_add.insert(connection_to_add.begin(), nodeNdx);
                 hyperEdges.push_back(connection_to_add);
-            }
+            // }
         });
     }
 
@@ -154,6 +154,21 @@ public:
     uint64_t get_num_sets()
     {
         return hyperEdges.size();
+    }
+
+    void write_idot(std::string filename = "aig.dot") {
+        std::ofstream output( filename.c_str(), std::ofstream::out );
+        output << "digraph G {\n";
+        for (int i = 0; i < hyperEdges.size(); i++) {
+            output << hyperEdges.at(i).at(0) << ";\n";
+        }
+        for (int i = 0; i < hyperEdges.size(); i++) {
+            for (int j = 1; j < hyperEdges.at(i).size(); j++) {
+                output << hyperEdges.at(i).at(0) << "->" << hyperEdges.at(i).at(j) << ";\n";
+            }
+        }
+        output << "}";
+        output.close();
     }
 
     std::vector<std::vector<uint32_t>> get_hyperedges()

@@ -44,6 +44,8 @@
 #include "kahypar_config.hpp"
 #include "utility.hpp"
 
+#include "dagP.h"
+
 namespace oracle
 {
 template <typename network>
@@ -51,7 +53,7 @@ class kahypar_partitioner
 {
     using Ntk = mockturtle::names_view<network>;
 public:
-    kahypar_partitioner(Ntk &ntk, int part_num, std::string config_direc = "",
+    kahypar_partitioner(Ntk &ntk, int part_num, std::string p_strategy, std::string config_direc = "",
                       kahypar_hypernode_weight_t *hypernode_weights = nullptr,
                         kahypar_hyperedge_weight_t *hyperedge_weights = nullptr,
                         double imbalance = 0.9): ntk(ntk), part_num(part_num), node_partition(ntk)
@@ -98,6 +100,32 @@ public:
         kahyp_num_indeces_hyper = t.get_num_indeces();
         kahyp_num_sets = t.get_num_sets();
         t.get_indeces(kahyp_set_indeces);
+
+        if (p_strategy == "dagP") {
+            int nbParts = part_num;
+            t.write_idot();
+            MLGP_option opt;
+            dgraph G;
+            dagP_init_parameters (&opt, 2);
+            dagP_init_filename(&opt, "aig.dot");
+            dagP_opt_reallocUBLB (&opt, nbParts);
+            opt.runs = 5;
+            dagP_read_graph ("aig.dot", &G, &opt);
+            idxType *parts = (idxType*) calloc((G.nVrtx+1), sizeof(idxType));
+            if (parts == NULL)
+                printf("Could not allocate `parts` array.\n");
+            ecType x = dagP_partition_from_dgraph(&G, &opt, parts);
+
+            for(idxType i=1; i<= G.nVrtx; ++i){
+                node_partition[i-1] = parts[i];
+            }
+
+            // printf ("edge cut: %d\n", (int) x);
+            free(parts);
+            dagP_free_option(&opt);
+            dagP_free_graph(&G);
+            return;
+        }
 
         /******************
         Partition with kahypar

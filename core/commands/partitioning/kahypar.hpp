@@ -77,6 +77,8 @@ namespace alice
                 add_flag("--sap,-s", "Apply Structure Aware Partitioning");
                 opts.add_option("--epsilon", imbalance,
                                 "Hypergraph partitioning epsilon imbalance parameter.");
+                opts.add_option("--p_strategy", p_strategy,
+                        "Partition strategy: kahypar, dagP. kahypar is Default.");
             }
 
     protected:
@@ -122,7 +124,7 @@ namespace alice
             env->out() << "Using KaHyPar configuration " << config_direc << std::endl;
 
             oracle::kahypar_partitioner<network> partitioner(ntk,
-                                                                  num_partitions,
+                                                                  num_partitions, p_strategy,
                                                                   config_direc,
                                                                   node_weights,
                                                                   edge_weights,
@@ -152,6 +154,7 @@ namespace alice
         std::string edge_weight_file = "";
         std::string node_weight_file = "";
         double imbalance = 0.9;
+        std::string p_strategy = "kahypar";
     };
 
     ALICE_ADD_COMMAND(kahypar, "Partitioning");
