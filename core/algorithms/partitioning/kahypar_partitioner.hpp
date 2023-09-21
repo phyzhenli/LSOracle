@@ -110,6 +110,7 @@ public:
             dagP_init_filename(&opt, "aig.dot");
             dagP_opt_reallocUBLB (&opt, nbParts);
             opt.runs = 5;
+            opt.use_binary_input = 0;
             dagP_read_graph ("aig.dot", &G, &opt);
             idxType *parts = (idxType*) calloc((G.nVrtx+1), sizeof(idxType));
             if (parts == NULL)
