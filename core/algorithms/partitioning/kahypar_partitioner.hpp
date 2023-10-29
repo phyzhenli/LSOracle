@@ -111,6 +111,10 @@ public:
             dagP_opt_reallocUBLB (&opt, nbParts);
             opt.runs = 5;
             opt.use_binary_input = 0;
+            // fix error: In topsortPart, not every nodes are sorted: to = 0, nbpart = 2
+            // see https://github.com/GT-TDAlab/dagP/issues/5
+            opt.conpar = 0;
+            opt.inipart = 11;
             dagP_read_graph ("aig.dot", &G, &opt);
             idxType *parts = (idxType*) calloc((G.nVrtx+1), sizeof(idxType));
             if (parts == NULL)
