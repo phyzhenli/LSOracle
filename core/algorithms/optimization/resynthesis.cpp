@@ -2510,10 +2510,10 @@ xmg_names optimize_basic (
         std::cout << "******************************** writing part additional ********************************" << std::endl;
         partitions.gen_additional_partition("part_additional", noop_dir + "/part_additional.v");
         std::cout << std::endl;
-        std::cout << "******************************** writing top inputs outputs ********************************" << std::endl;
-        partitions.write_inputs(noop_dir + "/top.inputs");
-        partitions.write_outputs(noop_dir + "/top.outputs");
-        std::cout << std::endl;
+        // std::cout << "******************************** writing top inputs outputs ********************************" << std::endl;
+        // partitions.write_inputs(noop_dir + "/top.inputs");
+        // partitions.write_outputs(noop_dir + "/top.outputs");
+        // std::cout << std::endl;
         std::cout << "Done and Exit." << std::endl;
         exit(0);
     }
