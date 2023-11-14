@@ -1802,7 +1802,7 @@ vector<optimizer<network> *> optimize1(optimization_strategy_comparator<network>
             if (noop_dir != "") {
                 std::string module_name = "part_" + std::to_string(index) + "_noop"; // + (*opt)->optimizer_name();
                 optimizers[0]->write_optimized ( module_name, noop_dir + "/" + module_name + ".v" );
-                optimizers[0]->write_ports ( noop_dir + "/" + module_name + ".ports" );
+                // optimizers[0]->write_ports ( noop_dir + "/" + module_name + ".ports" );
             }
             node_depth result = optimizers[0]->independent_metric();
             std::cout << "result depth " << result.depth
@@ -1823,7 +1823,7 @@ vector<optimizer<network> *> optimize1(optimization_strategy_comparator<network>
                 if ( (noop_dir != "") && ((*opt)->optimizer_name() == "noop") ) {
                     std::string module_name = "part_" + std::to_string(index) + "_noop"; // (*opt)->optimizer_name();
                     (*opt)->write_optimized ( module_name, noop_dir + "/" + module_name + ".v" );
-                    (*opt)->write_ports ( noop_dir + "/" + module_name + ".ports" );
+                    // (*opt)->write_ports ( noop_dir + "/" + module_name + ".ports" );
                 }
                 // std::map<std::string, std::string> bench_info;
                 // bench_info["top"] = module_name;

@@ -134,11 +134,11 @@ public:
         writer.on_module_end();
         os.close();
 
-        std::vector<std::string> ports( inputs );
-        ports.insert(ports.end(), outputs.begin(), outputs.end());
-        std::ofstream os_ports( (filename.erase(filename.length()-2) + ".ports").c_str(), std::ofstream::out );
-        os_ports << fmt::format( "{}", fmt::join( ports, " " ) );
-        os_ports.close();
+        // std::vector<std::string> ports( inputs );
+        // ports.insert(ports.end(), outputs.begin(), outputs.end());
+        // std::ofstream os_ports( (filename.erase(filename.length()-2) + ".ports").c_str(), std::ofstream::out );
+        // os_ports << fmt::format( "{}", fmt::join( ports, " " ) );
+        // os_ports.close();
     }
 
     void write_inputs( std::string filename ) {
