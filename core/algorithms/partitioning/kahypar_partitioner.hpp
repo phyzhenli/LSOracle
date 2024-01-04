@@ -81,26 +81,16 @@ public:
             return;
         }
 
-        uint32_t kahyp_num_hyperedges = 0;
-        uint32_t kahyp_num_vertices = 0;
-        uint32_t kahyp_num_indeces_hyper = 0;
-        unsigned long kahyp_num_sets = 0;
-        std::vector<uint32_t> kahypar_connections;
-        std::vector<unsigned long> kahyp_set_indeces;
-
         /******************
         Generate HyperGraph
         ******************/
-
         hypergraph<Ntk> t(ntk);
-        t.get_hypergraph(ntk);
-        t.return_hyperedges(kahypar_connections);
-        kahyp_num_hyperedges = t.get_num_edges();
-        kahyp_num_vertices = t.get_num_vertices();
-        kahyp_num_indeces_hyper = t.get_num_indeces();
-        kahyp_num_sets = t.get_num_sets();
-        t.get_indeces(kahyp_set_indeces);
+        if (p_strategy == "kahypar" or p_strategy == "dagP")
+            t.get_hypergraph(ntk);
+        if (p_strategy == "mffc_kahypar" or p_strategy == "mffc_dagP")
+            t.get_mffc_hypergraph();
 
+        // t.dump();
         if (p_strategy == "dagP") {
             int nbParts = part_num;
             t.write_idot();
@@ -132,66 +122,119 @@ public:
             return;
         }
 
-        /******************
-        Partition with kahypar
-        ******************/
-        //configures kahypar
-        kahypar_context_t* context = kahypar_context_new();
+        if (p_strategy == "kahypar" or p_strategy == "mffc_kahypar") {
+            uint32_t kahyp_num_hyperedges = 0;
+            uint32_t kahyp_num_vertices = 0;
+            uint32_t kahyp_num_indeces_hyper = 0;
+            unsigned long kahyp_num_sets = 0;
+            std::vector<uint32_t> kahypar_connections;
+            std::vector<unsigned long> kahyp_set_indeces;
 
-        std::cout << "Using config file " << config_direc << std::endl;
-        kahypar_configure_context_from_file(context, config_direc.c_str());
+            t.return_hyperedges(kahypar_connections);
+            kahyp_num_hyperedges = t.get_num_edges();
+            if (p_strategy == "kahypar") kahyp_num_vertices = t.get_num_vertices();
+            if (p_strategy == "mffc_kahypar") kahyp_num_vertices = t.get_num_edges();
+            kahyp_num_indeces_hyper = t.get_num_indeces();
+            kahyp_num_sets = t.get_num_sets();
+            t.get_indeces(kahyp_set_indeces);
 
-        //set number of hyperedges and vertices. These variables are defined by the hyperG command
-        const kahypar_hyperedge_id_t num_hyperedges = kahyp_num_hyperedges;
-        const kahypar_hypernode_id_t num_vertices = kahyp_num_vertices;
+            /******************
+            Partition with kahypar
+            ******************/
+            //configures kahypar
+            kahypar_context_t* context = kahypar_context_new();
 
-        //set edges with different weights
-        if (hyperedge_weights == nullptr) {
-            hyperedge_weights = new kahypar_hyperedge_weight_t[kahyp_num_hyperedges];
-            std::vector<std::vector<uint32_t>> hyperedges = t.get_hyperedges();
-            mockturtle::depth_view depth_ntk{ntk};
-            for ( int i = 0; i < hyperedges.size(); i++ ) {
-                if ( depth_ntk.is_on_critical_path(hyperedges[i][0]) )
-                    hyperedge_weights[i] = 1000;
-                else
-                    hyperedge_weights[i] = hyperedges[i].size();
+            std::cout << "Using config file " << config_direc << std::endl;
+            kahypar_configure_context_from_file(context, config_direc.c_str());
+
+            //set number of hyperedges and vertices. These variables are defined by the hyperG command
+            const kahypar_hyperedge_id_t num_hyperedges = kahyp_num_hyperedges;
+            const kahypar_hypernode_id_t num_vertices = kahyp_num_vertices;
+
+            //set edges with different weights
+            if (p_strategy == "kahypar") {
+                if (hyperedge_weights == nullptr) {
+                    hyperedge_weights = new kahypar_hyperedge_weight_t[kahyp_num_hyperedges];
+                    std::vector<std::vector<uint32_t>> hyperedges = t.get_hyperedges();
+                    mockturtle::depth_view depth_ntk{ntk};
+                    for ( int i = 0; i < hyperedges.size(); i++ ) {
+                        if ( depth_ntk.is_on_critical_path(hyperedges[i][0]) )
+                            hyperedge_weights[i] = 1000;
+                        else
+                            hyperedge_weights[i] = hyperedges[i].size();
+                    }
+                }
             }
+
+            if (p_strategy == "mffc_kahypar") {
+                hypernode_weights = new kahypar_hypernode_weight_t [kahyp_num_vertices];
+                for (uint32_t i = 0; i < kahyp_num_vertices; i++) {
+                    mockturtle::mffc_view mffc{ ntk, t.get_ntk_node(i) };
+                    hypernode_weights[i] = mffc.size()-mffc.num_pis()-1;
+                    // cout << hypernode_weights[i] << " ";
+                }
+            }
+
+            //vector with indeces where each set starts
+            std::unique_ptr<size_t[]> hyperedge_indices = std::make_unique<size_t[]>
+                (kahyp_num_sets + 1);
+
+            for (int j = 0; j < kahyp_num_sets + 1; j++) {
+                hyperedge_indices[j] = kahyp_set_indeces[j];
+            }
+
+            std::unique_ptr<kahypar_hyperedge_id_t[]> hyperedges =
+                std::make_unique<kahypar_hyperedge_id_t[]>(kahyp_num_indeces_hyper);
+
+            for (int i = 0; i < kahyp_num_indeces_hyper; i++) {
+                hyperedges[i] = kahypar_connections[i];
+            }
+
+            const kahypar_partition_id_t k = part_num;
+
+            kahypar_hyperedge_weight_t objective = 0;
+
+            std::vector<kahypar_partition_id_t> partition(num_vertices, -1);
+            kahypar_hypergraph_t *hypergraph = kahypar_create_hypergraph(k,
+                                                                        num_vertices,
+                                                                        num_hyperedges,
+                                                                        hyperedge_indices.get(),
+                                                                        hyperedges.get(),
+                                                                        hyperedge_weights,
+                                                                        hypernode_weights);
+            kahypar_partition_hypergraph(hypergraph, k, imbalance, &objective, context,
+                                        partition.data());
+            if (p_strategy == "kahypar") {
+                for (int i = 0; i < num_vertices; i++) {
+                    node_partition[i] = partition[i];
+                }
+            }
+
+            // if (p_strategy == "mffc_kahypar") {
+            //     for (uint32_t i = 0; i < num_vertices; i++) {
+            //         cout << partition[i] << " ";
+            //     }
+            // }
+            // cout << endl;
+
+            if (p_strategy == "mffc_kahypar") {
+                for (uint32_t i = 0; i < num_vertices; i++) {
+                    if (i == 0)
+                        node_partition[i] = partition[i];
+                    else {
+                        // cout << "ntk node: " << t.get_ntk_node(i) << ", ";
+                        mockturtle::mffc_view mffc{ ntk, t.get_ntk_node(i) };
+                        mffc.foreach_gate([&]( auto const& n, auto ii ) {
+                            (void)ii;
+                            node_partition[n] = partition[i];
+                            // cout << "node " << n << " is part " << partition[i] << ", ";
+                        });
+                    }
+                }
+            }
+
+            kahypar_context_free(context);
         }
-
-        //vector with indeces where each set starts
-        std::unique_ptr<size_t[]> hyperedge_indices = std::make_unique<size_t[]>
-            (kahyp_num_sets + 1);
-
-        for (int j = 0; j < kahyp_num_sets + 1; j++) {
-            hyperedge_indices[j] = kahyp_set_indeces[j];
-        }
-
-        std::unique_ptr<kahypar_hyperedge_id_t[]> hyperedges =
-            std::make_unique<kahypar_hyperedge_id_t[]>(kahyp_num_indeces_hyper);
-
-        for (int i = 0; i < kahyp_num_indeces_hyper; i++) {
-            hyperedges[i] = kahypar_connections[i];
-        }
-
-        const kahypar_partition_id_t k = part_num;
-
-        kahypar_hyperedge_weight_t objective = 0;
-
-        std::vector<kahypar_partition_id_t> partition(num_vertices, -1);
-        kahypar_hypergraph_t *hypergraph = kahypar_create_hypergraph(k,
-                                                                     num_vertices,
-                                                                     num_hyperedges,
-                                                                     hyperedge_indices.get(),
-                                                                     hyperedges.get(),
-                                                                     hyperedge_weights,
-                                                                     hypernode_weights);
-        kahypar_partition_hypergraph(hypergraph, k, imbalance, &objective, context,
-                                     partition.data());
-        for (int i = 0; i < num_vertices; i++) {
-            node_partition[i] = partition[i];
-        }
-
-        kahypar_context_free(context);
     }
 
     partition_manager_junior<network> partition_manager() {

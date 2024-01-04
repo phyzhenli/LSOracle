@@ -86,7 +86,7 @@ public:
                 opts.add_option("--noop_dir,-d", noop_dir,
                         "Write all noop partitions to the directory and exit");
                 opts.add_option("--p_strategy", p_strategy,
-                        "Partition strategy: kahypar, dagP. kahypar is Default.");
+                        "Partition strategy: kahypar, dagP, mffc_kahypar, mffc_dagP. kahypar is Default.");
             }
 
     protected:

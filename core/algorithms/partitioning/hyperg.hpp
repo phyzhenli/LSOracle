@@ -47,6 +47,8 @@ class hypergraph
     std::set<typename Ntk::node> nodes;
     std::vector<uint32_t> connections;
 
+    std::vector<uint32_t> vec_mffc_po;
+
 public:
     hypergraph(Ntk const &ntk) : ntk(ntk) {};
 
@@ -97,11 +99,59 @@ public:
         });
     }
 
+    void get_mffc_hypergraph()
+    {
+        static_assert(mockturtle::has_foreach_node_v<Ntk>,
+                      "Ntk does not implement the foreach_node method");
+        static_assert(mockturtle::has_foreach_gate_v<Ntk>,
+                      "Ntk does not implement the foreach_gate method");
+        static_assert(mockturtle::has_node_to_index_v<Ntk>,
+                      "Ntk does not implement the node_to_index method");
+        static_assert(mockturtle::has_foreach_fanin_v<Ntk>,
+                      "Ntk does not implement the foreach_fanin method");
+        static_assert(mockturtle::has_size_v<Ntk>,
+                      "Ntk does not implement the size method");
+
+        std::set<uint32_t> visited_nodes;
+        ntk.foreach_node([&](auto node) {
+            uint32_t node_r = ntk.size()-node-1;
+            if (!visited_nodes.count(node_r)) {
+                vec_mffc_po.push_back(node_r);
+                mockturtle::mffc_view mffc{ ntk, node_r };
+                mffc.foreach_gate([&]( auto const& n, auto i ) {
+                    (void)i;
+                    visited_nodes.insert(n);
+                });
+            }
+        });
+
+        std::reverse(vec_mffc_po.begin(), vec_mffc_po.end());
+
+        std::unordered_map<uint32_t, uint32_t> mffc_po_index;
+        for (int i = 0; i < vec_mffc_po.size(); i++)
+            mffc_po_index[vec_mffc_po[i]] = i;
+
+        for(auto& m_po : vec_mffc_po) {
+            mockturtle::mffc_view mffc{ ntk, m_po };
+            vector<uint32_t> conn;
+            conn.push_back(mffc_po_index[m_po]);
+            mffc.foreach_pi( [&]( auto const& n, auto i ) {
+                (void)i;
+                conn.push_back(mffc_po_index[n]);
+            });
+            hyperEdges.push_back(conn);
+        }
+    }
+
+    uint32_t get_ntk_node(uint32_t& index) {
+        return vec_mffc_po[index];
+    }
+
     void dump(std::string filename = "hypergraph.txt")
     {
         std::ofstream myfile;
         myfile.open(filename);
-        myfile << hyperEdges.size() << " " << ntk.size() - 1 << "\n";
+        myfile << hyperEdges.size() << " " << hyperEdges.size() << "\n";
         for (int i = 0; i < hyperEdges.size(); i++) {
             for (int j = 0; j < hyperEdges.at(i).size(); j++) {
                 connections.push_back(hyperEdges.at(i).at(j));
